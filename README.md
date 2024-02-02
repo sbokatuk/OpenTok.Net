@@ -28,8 +28,8 @@ This repository provides `.NET` Bindings for `Vonage` formely `OpenTok` of tokbo
 ### `SampleApps/` Directory
 - **`MAUI/`**: A .NET MAUI application demonstrating the bindings.
 
-### `LocalNugetPackages/` Directory
-- Hosts local NuGet packages.
+### `NugetPackages/` Directory
+- Hosts NuGet packages.
 
 ### Scripts and Automation
 - **`.loadnative.sh`**: Automates downloading native frameworks and version change.
