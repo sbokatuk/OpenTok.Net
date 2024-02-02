@@ -4,16 +4,15 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>true</ImplicitUsings>
     <IsBindingProject>true</IsBindingProject>
-    <ReleaseVersion>2.27.1.1</ReleaseVersion>
     <SynchReleaseVersion>false</SynchReleaseVersion>
+    <ReleaseVersion>2.27.1.1</ReleaseVersion>
   </PropertyGroup>
-
   <ItemGroup>
     <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
     <ObjcBindingCoreSource Include="StructsAndEnums.cs" />
   </ItemGroup>
   <ItemGroup>
-    <NativeReference Include="../lib/OpenTok.xcframework">
+    <NativeReference Include="lib\OpenTok.xcframework">
       <Kind>Framework</Kind>
       <Frameworks>AudioToolbox AVFoundation CoreGraphics CoreMedia CoreTelephony CoreVideo Foundation GLKit Metal MetalKit MetalPerformanceShaders OpenGLES QuartzCore SystemConfiguration UIKit VideoToolbox</Frameworks>
       <LinkerFlags>-ObjC -ld_classic</LinkerFlags>

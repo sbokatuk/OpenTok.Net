@@ -1,7 +1,6 @@
 ﻿using ObjCRuntime;
 
-
-namespace MAUI.OpenTok
+namespace MAUI.OpenTok.iOS
 {
     public enum OTSessionConnectionStatus
     {
@@ -149,4 +148,7 @@ namespace MAUI.OpenTok
         OTCameraCaptureFrameRate7FPS = 7,
         OTCameraCaptureFrameRate1FPS = 1
     }
+
 }
+
+
