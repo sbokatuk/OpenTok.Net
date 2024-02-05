@@ -8,7 +8,7 @@ using Foundation;
 using ObjCRuntime;
 using UIKit;
 
-namespace MAUI.OpenTok.iOS
+namespace OpenTok.Net.iOS
 {
     // @interface OTSessionICEConfig : NSObject
     [BaseType(typeof(NSObject))]

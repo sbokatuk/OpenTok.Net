@@ -1,6 +1,6 @@
 ﻿using ObjCRuntime;
 
-namespace MAUI.OpenTok.iOS
+namespace OpenTok.Net.iOS
 {
     public enum OTSessionConnectionStatus
     {

@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Version>2.27.1.71</Version>
+    <authors>s.bokatuk</authors>
+    <owners>s.bokatuk</owners>
+    <title>Xamarin bindings to the native iOS Vonage OpenTok SDK.</title>
+    <description>MAUI iOS Xamarin bindings for Vonage OpenTok SDK for iOS. The Vonage OpenTok iOS SDK lets you use video sessions in apps you build for iPad, iPhone.</description>
+    <summary>Xamarin Vonage OpenTok iOS SDK, see tokbox.com</summary>
+    <tags>Opentok Tokbox Vonage SDK Xamarin iOS Xamarin.iOS MAUI MAUI.iOS .Net Binding VideoCall WebRTC</tags>
+    <projectUrl>https://github.com/sbokatuk/OpenTok.Net</projectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <AssemblyName>OpenTok.Net.iOS</AssemblyName>
+    <PackageId>OpenTok.Net.iOS</PackageId>
+    <TargetFramework>net7.0-ios</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>true</ImplicitUsings>
+    <IsBindingProject>true</IsBindingProject>
+    <SynchReleaseVersion>false</SynchReleaseVersion>
+    <ReleaseVersion>2.27.1.1</ReleaseVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <ObjcBindingApiDefinition Include="ApiDefinition.cs" />
+    <ObjcBindingCoreSource Include="StructsAndEnums.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <NativeReference Include="lib\OpenTok.xcframework">
+      <Kind>Framework</Kind>
+      <Frameworks>AudioToolbox AVFoundation CoreGraphics CoreMedia CoreTelephony CoreVideo Foundation GLKit Metal MetalKit MetalPerformanceShaders OpenGLES QuartzCore SystemConfiguration UIKit VideoToolbox</Frameworks>
+      <LinkerFlags>-ObjC -ld_classic</LinkerFlags>
+      <IsCxx>True</IsCxx>
+    </NativeReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="docs\README.md" Pack="true" PackagePath="\"/>
+    <None Include="docs\icon.png" Pack="true" PackagePath="\"/>
+  </ItemGroup>
+</Project>

@@ -1,4 +1,8 @@
 # .NET Bindings for Vonage Opentok WebRTC SDK (Xamarin.Opentok and Xamarin.Vonage previously)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+Android: [![NuGet Badge](https://buildstats.info/nuget/OpenTok.Net.Android)](https://www.nuget.org/packages/OpenTok.Net.Android/)
+iOS: [![NuGet Badge](https://buildstats.info/nuget/OpenTok.Net.iOS)](https://www.nuget.org/packages/OpenTok.Net.iOS/)
+
 
 This repository provides `.NET` Bindings for `Vonage` formely `OpenTok` of tokbox.com Video and Audio WebRTC SDKs (`MAUI.Vonage`) targeting platforms:
 - **iOS**:
@@ -38,8 +42,10 @@ This repository provides `.NET` Bindings for `Vonage` formely `OpenTok` of tokbo
   - Invoke via `./bind.sh` in the terminal.
 - **`.changeversions.sh`**: Automates version change for SDK.
   - Invoke via `./changeversions.sh 1.1.1.1` in the terminal.
-- **`.cleanup.sh`**: Automates cleaning for pushing SDK.
+- **`.cleanup.sh`**: Automates cleaning for SDK.
   - Invoke via `./cleanup.sh` in the terminal.
+- **`.publish.sh`**: Automates for pushing SDK.
+  - Invoke via `./publish.sh [apikey]` in the terminal, apikey - your from nuget.org.
 
 ## Objective Sharpie - A Closer Look
 - Essential for translating native iOS APIs into .NET compatible bindings.
@@ -51,5 +57,5 @@ This repository provides `.NET` Bindings for `Vonage` formely `OpenTok` of tokbo
 - **Android SDK Reference**: [Vonage Video API on Tokbox.com](https://tokbox.com/developer/sdks/android/)
 - **Objective Sharpie Documentation**: [Objective Sharpie Guide](https://learn.microsoft.com/en-us/xamarin/cross-platform/macios/binding/objective-sharpie/get-started)
 
-### Apache 2.0 License
-[![License](https://img.shields.io/badge/License-Apache_2.0-yellowgreen.svg)](https://opensource.org/licenses/Apache-2.0)  
+### MIT License
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
