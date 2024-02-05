@@ -1,10 +1,10 @@
-# .NET Bindings for Vonage Opentok WebRTC SDK (Xamarin.Opentok and Xamarin.Vonage previously)
+# .NET Bindings for Vonage Opentok WebRTC SDK (Xamarin Opentok and Xamarin Vonage previously)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 Android: [![NuGet Badge](https://buildstats.info/nuget/OpenTok.Net.Android)](https://www.nuget.org/packages/OpenTok.Net.Android/)
 iOS: [![NuGet Badge](https://buildstats.info/nuget/OpenTok.Net.iOS)](https://www.nuget.org/packages/OpenTok.Net.iOS/)
 
 
-This repository provides `.NET` Bindings for `Vonage` formely `OpenTok` of tokbox.com Video and Audio WebRTC SDKs (`MAUI.Vonage`) targeting platforms:
+This repository provides `.NET` Bindings for `Vonage` formely `OpenTok` of tokbox.com Video and Audio WebRTC SDKs (`MAUI`) targeting platforms:
 - **iOS**:
      - [Native ObjectiveC sample app](https://github.com/opentok/opentok-ios-sdk-samples).
      - [Native Swift sample app](https://github.com/opentok/opentok-ios-sdk-samples-swift).
