@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Version>2.27.1.81</Version>
+    <authors>s.bokatuk</authors>
+    <owners>s.bokatuk</owners>
+    <title>Xamarin bindings to the native Android Vonage OpenTok SDK.</title>
+    <description>MAUI Android Xamarin bindings for Vonage OpenTok SDK for Android. The Vonage OpenTok Android SDK lets you use video sessions in apps you build for Android.</description>
+    <summary>Xamarin Vonage OpenTok ANdroid SDK, see tokbox.com</summary>
+    <tags>Opentok Tokbox Vonage SDK Xamarin Android Xamarin.Android MAUI MAUI.Android .Net Binding VideoCall WebRTC</tags>
+    <projectUrl>https://github.com/sbokatuk/OpenTok.Net</projectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <AssemblyName>OpenTok.Net.Android</AssemblyName>
+    <PackageId>OpenTok.Net.Android</PackageId>
+    <TargetFramework>net8.0-android</TargetFramework>
+    <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <SynchReleaseVersion>false</SynchReleaseVersion>
+    <ReleaseVersion>2.27.1.1</ReleaseVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="docs\README.md" Pack="true" PackagePath="\" />
+    <None Include="docs\icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>
