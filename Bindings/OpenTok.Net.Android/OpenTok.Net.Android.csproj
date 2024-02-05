@@ -14,7 +14,7 @@
     <AssemblyName>OpenTok.Net.Android</AssemblyName>
     <PackageId>OpenTok.Net.Android</PackageId>
     <TargetFramework>net8.0-android</TargetFramework>
-    <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <SynchReleaseVersion>false</SynchReleaseVersion>
