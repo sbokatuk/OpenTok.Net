@@ -1,21 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <package >
   <metadata>
-    <id>MAUI.OpenTok</id>
-    <version>1.0.0</version>
-    <authors>sbokatuk</authors>
+    <id>OpenTok.Net</id>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <license type="expression">MIT</license>
-    <!-- <icon>icon.png</icon> -->
-    <projectUrl>http://project_url_here_or_delete_this_line/</projectUrl>
-    <description>Package description</description>
-    <releaseNotes>Summary of changes made in this release of the package.</releaseNotes>
-    <copyright>$copyright$</copyright>
-    <tags>Tag1 Tag2</tags>
+    <icon>images/icon.png</icon>
+    <version>2.27.1.81</version>
+    <authors>s.bokatuk</authors>
+    <owners>s.bokatuk</owners>
+    <title>Xamarin bindings to the native Android and iOS Vonage OpenTok SDK.</title>
+    <description>MAUI Android Xamarin bindings for Vonage OpenTok SDK for Android and iOS. The Vonage OpenTok SDK lets you use video sessions in apps you build for Android.</description>
+    <summary>Xamarin Vonage .Net OpenTok Android iOS SDK, see tokbox.com</summary>
+    <tags>Opentok Tokbox Vonage SDK Xamarin Android Xamarin.Android MAUI MAUI.Android iOS MAUI.iOS Xamarin.iOS .Net Binding VideoCall WebRTC</tags>
+    <projectUrl>https://github.com/sbokatuk/OpenTok.Net</projectUrl>
     <dependencies>
-      <group targetFramework=".NETStandard2.1">
-        <dependency id="SampleDependency" version="1.0.0" />
-      </group>
+     <group targetFramework="net8.0-android34.0">
+	 </group>
+     <group targetFramework="net8.0-ios17.2">
+     </group>
     </dependencies>
   </metadata>
+    <files>
+      <file src="icon.png" target="images/" />
+      <file src="README.md" target="" />
+	  <file src="../Bindings/OpenTok.Net.Android/bin/Release/net8.0-android/*" target="lib/net8.0-android34.0" />
+	  <file src="../Bindings/OpenTok.Net.iOS/bin/Release/net8.0-ios/*" target="lib/net8.0-ios17.2" />      
+    </files>
 </package>
