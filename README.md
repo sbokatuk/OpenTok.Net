@@ -1,7 +1,10 @@
 # .NET and MAUI Bindings for Vonage Opentok WebRTC SDK (Xamarin Opentok and Xamarin Vonage previously)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 only Android: [![NuGet Badge](https://buildstats.info/nuget/OpenTok.Net.Android)](https://www.nuget.org/packages/OpenTok.Net.Android/)
+
 only iOS: [![NuGet Badge](https://buildstats.info/nuget/OpenTok.Net.iOS)](https://www.nuget.org/packages/OpenTok.Net.iOS/)
+
 OpenTok.Net: [![NuGet Badge](https://buildstats.info/nuget/OpenTok.Net)](https://www.nuget.org/packages/OpenTok.Net/)
 
 ### .Net 7 and .Net 8 support
