@@ -1,32 +1,30 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Version>2.27.1.802</Version>
+    <Version>3.1.44.85</Version>
     <authors>s.bokatuk</authors>
     <owners>s.bokatuk</owners>
-    <title>Xamarin bindings to the native Android Vonage OpenTok SDK.</title>
+    <title>Xamarin Dependent bindings to the native Android Vonage OpenTok SDK.</title>
     <description>MAUI Android Xamarin bindings for Vonage OpenTok SDK for Android. The Vonage OpenTok Android SDK lets you use video sessions in apps you build for Android.</description>
     <summary>Xamarin Vonage OpenTok ANdroid SDK, see tokbox.com</summary>
     <tags>Opentok Tokbox Vonage SDK Xamarin Android Xamarin.Android MAUI MAUI.Android .Net Binding VideoCall WebRTC</tags>
     <projectUrl>https://github.com/sbokatuk/OpenTok.Net</projectUrl>
+    <AssemblyName>OpenTok.Net.mltransformers.Dependency.Android</AssemblyName>
+    <PackageId>OpenTok.Net.mltransformers.Dependency.Android</PackageId>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <AssemblyName>OpenTok.Net.Android</AssemblyName>
-    <PackageId>OpenTok.Net.Android</PackageId>
     <TargetFramework>net8.0-android</TargetFramework>
     <SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <SynchReleaseVersion>false</SynchReleaseVersion>
-    <ReleaseVersion>2.27.1.1</ReleaseVersion>
+    <ReleaseVersion>3.1.44.1</ReleaseVersion>
   </PropertyGroup>
-  <ItemGroup>
+   <ItemGroup>
     <None Include="docs\README.md" Pack="true" PackagePath="\" />
     <None Include="docs\icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Xamarin.AndroidX.Annotation" Version="1.7.1" />
-    <PackageReference Include="OpenTok.Net.mltransformers.Dependency.Android" Version="3.1.44.84" />
-    <PackageReference Include="OpenTok.Net.webrtc.Dependency.Android" Version="99.10.35.84" />
-  </ItemGroup>
+   <ItemGroup>
+     <PackageReference Include="OpenTok.Net.webrtc.Dependency.Android" Version="99.10.35.84" />
+   </ItemGroup>
 </Project>

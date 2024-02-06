@@ -1,0 +1,7 @@
+﻿<metadata>
+  <attr path="/api/package[@name='com.vonage.webrtc']/class[@name='WrappedNativeVideoEncoder']/method[@name='getScalingSettings' and count(parameter)=0]" name="propertyName"></attr>
+  <attr path="/api/package[@name='com.vonage.webrtc']/class[@name='TextureBufferImpl']/method[@name='getType' and count(parameter)=0]" name="propertyName"></attr>
+  <attr path="/api/package[@name='com.vonage.webrtc']/class[@name='StatsReport.Value']" name="managedName">StatsReportValue</attr>
+</metadata>
+
+

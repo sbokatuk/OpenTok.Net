@@ -1,5 +1,5 @@
 ﻿<metadata>
-  <remove-node path="/api/package[@name='com.google.mediapipe.framework']/class[@name='AssetCacheDbHelper.AssetCacheEntry']" />
+  <!--<remove-node path="/api/package[@name='com.google.mediapipe.framework']/class[@name='AssetCacheDbHelper.AssetCacheEntry']" />
   <attr path="/api/package[@name='com.opentok.android']/interface[@name='SubscriberKit.StreamListener']/method[@name='onDisconnected' and count(parameter)=1 and parameter[1][@type='com.opentok.android.SubscriberKit']]" name="argsType">StreamListenerDisconnectedEventArgs</attr>
   <attr path="/api/package[@name='com.opentok.android']/interface[@name='SubscriberKit.SubscriberListener']/method[@name='onDisconnected' and count(parameter)=1 and parameter[1][@type='com.opentok.android.SubscriberKit']]" name="argsType">SubscriberListenerDisconnectedEventArgs</attr>
   <attr path="/api/package[@name='com.opentok.android.v3']/interface[@name='Subscriber.StreamListener']/method[@name='onDisconnected' and count(parameter)=1 and parameter[1][@type='com.opentok.android.v3.Subscriber']]" name="argsType">SubscriberDisconnectedEventArgs</attr>
@@ -8,7 +8,11 @@
   <attr path="/api/package[@name='com.opentok.android']/interface[@name='SubscriberKit.SubscriberListener']/method[@name='onDisconnected' and count(parameter)=1 and parameter[1][@type='com.opentok.android.SubscriberKit']]" name="managedName">SubscriberDisconnected</attr>
   <attr path="/api/package[@name='com.vonage.webrtc']/class[@name='WrappedNativeVideoEncoder']/method[@name='getScalingSettings' and count(parameter)=0]" name="propertyName"></attr>
   <attr path="/api/package[@name='com.vonage.webrtc']/class[@name='TextureBufferImpl']/method[@name='getType' and count(parameter)=0]" name="propertyName"></attr>
-  <attr path="/api/package[@name='com.vonage.webrtc']/class[@name='StatsReport.Value']" name="managedName">StatsReportValue</attr>
+  <attr path="/api/package[@name='com.vonage.webrtc']/class[@name='StatsReport.Value']" name="managedName">StatsReportValue</attr>-->
+  <!--<attr path="/api/package[@name='com.opentok.android.v3']/interface[@name='Subscriber.StreamListener']/method[@name='onDisconnected' and count(parameter)=1 and parameter[1][@type='com.opentok.android.v3.Subscriber']]" name="argsType">SubscriberDisconnectedEventArgs</attr>-->
+  <!--<attr path="/api/package[@name='com.opentok.android']/interface[@name='SubscriberKit.SubscriberListener']/method[@name='onDisconnected' and count(parameter)=1 and parameter[1][@type='com.opentok.android.SubscriberKit']]" name="argsType">SubscriberListenerDisconnectedEventArgs</attr>-->
+  <attr path="/api/package[@name='com.opentok.android']/interface[@name='SubscriberKit.StreamListener']/method[@name='onDisconnected' and count(parameter)=1 and parameter[1][@type='com.opentok.android.SubscriberKit']]" name="managedName">StreamDisconnected</attr>
+  <!--<attr path="/api/package[@name='com.vonage.webrtc']/class[@name='WrappedNativeVideoEncoder']/method[@name='getScalingSettings' and count(parameter)=0]" name="propertyName"></attr>-->
 </metadata>
 
 

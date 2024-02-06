@@ -1,0 +1,7 @@
+﻿<metadata>
+<remove-node path="/api/package[@name='com.google.mediapipe.framework']/class[@name='AssetCacheDbHelper.AssetCacheEntry']" />
+<remove-node path="/api/package[@name='com.vonage.mltransformers']/interface[@name='VideoCapturer.VideoCapturerListener']" />
+<!--<attr path="/api/package[@name='com.vonage.mltransformers']/interface[@name='VideoCapturer.VideoCapturerListener']/method[@name='onFrameCaptured' and count(parameter)=1 and parameter[1][@type='com.vonage.webrtc.VideoFrame']]" name="propertyName"></attr>-->
+</metadata>
+
+
