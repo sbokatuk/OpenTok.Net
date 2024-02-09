@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Version>3.1.44.85</Version>
+    <Version>3.1.44.8</Version>
     <authors>s.bokatuk</authors>
     <owners>s.bokatuk</owners>
     <title>Xamarin Dependent bindings to the native Android Vonage OpenTok SDK.</title>
@@ -23,8 +23,9 @@
    <ItemGroup>
     <None Include="docs\README.md" Pack="true" PackagePath="\" />
     <None Include="docs\icon.png" Pack="true" PackagePath="\" />
+    <Content Include="OpenTok.Net.mltransformers.Dependency.Android.targets" PackagePath="build/OpenTok.Net.mltransformers.Dependency.Android.targets" />
   </ItemGroup>
    <ItemGroup>
-     <PackageReference Include="OpenTok.Net.webrtc.Dependency.Android" Version="99.10.35.84" />
+     <PackageReference Include="OpenTok.Net.webrtc.Dependency.Android" Version="99.10.35.17" />
    </ItemGroup>
 </Project>

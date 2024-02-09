@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Version>2.27.1.81</Version>
+    <Version>2.27.1.8</Version>
     <authors>s.bokatuk</authors>
     <owners>s.bokatuk</owners>
     <title>Xamarin bindings to the native iOS Vonage OpenTok SDK.</title>
@@ -41,5 +41,10 @@
   <ItemGroup>
     <Compile Remove="ApiDefinitions.new.cs" />
     <Compile Remove="StructsAndEnums.new.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="OpenTok.Net.iOS.targets">
+      <PackagePath>build/OpenTok.Net.iOS.targets</PackagePath>
+    </Content>
   </ItemGroup>
 </Project>

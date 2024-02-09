@@ -48,8 +48,8 @@ This repository provides `.NET` Bindings for `Vonage` formely `OpenTok` of tokbo
   - Invoke via `./bind.sh` in the terminal.
 - **`.changeversions.sh`**: Automates version change for SDK.
   - Invoke via `./changeversions.sh 1.1.1.1` in the terminal.
-- **`.target.sh`**: Automates version change target of nugets.
-  - Invoke via `./target.sh 8.0` in the terminal.
+- **`.target.sh`**: Automates version build and nugets tests.
+  - Invoke via `./target.sh VERSION="2.27.1" IOSVERSION="2.27.1" ANDROIDVERSION="2.27.1" BUILD="17" WEBRTC="99.10.35" MLTRANSFORMERS="3.1.44"` in the terminal.
 - **`.cleanup.sh`**: Automates cleaning for SDK.
   - Invoke via `./cleanup.sh` in the terminal.
 - **`.publish.sh`**: Automates for pushing SDK.

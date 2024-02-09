@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <package >
   <metadata>
-    <id>OpenTok.Net</id>
+    <id>OpenTok.Net.Android</id>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <license type="expression">MIT</license>
     <icon>images/icon.png</icon>
@@ -10,7 +10,7 @@
     <owners>s.bokatuk</owners>
     <readme>README.md</readme>
     <title>Xamarin bindings to the native Android and iOS Vonage OpenTok SDK.</title>
-    <description>MAUI Xamarin bindings for Vonage OpenTok SDK for Android and iOS. The Vonage OpenTok SDK lets you use video sessions in apps you build for Android.</description>
+    <description>MAUI Android Xamarin bindings for Vonage OpenTok SDK for Android and iOS. The Vonage OpenTok SDK lets you use video sessions in apps you build for Android.</description>
     <summary>Xamarin Vonage .Net OpenTok Android iOS SDK, see tokbox.com</summary>
     <tags>Opentok Tokbox Vonage SDK Xamarin Android Xamarin.Android MAUI MAUI.Android iOS MAUI.iOS Xamarin.iOS .Net Binding VideoCall WebRTC</tags>
     <projectUrl>https://github.com/sbokatuk/OpenTok.Net</projectUrl>
@@ -25,20 +25,15 @@
      	<dependency id="OpenTok.Net.webrtc.Dependency.Android" version="99.10.35.17" exclude="Build,Analyzers"/>
      	<dependency id="Xamarin.AndroidX.Annotation" version="1.7.1" exclude="Build,Analyzers"/>
 	 </group>
-	 <group targetFramework="net7.0-ios16.1" />
-     <group targetFramework="net8.0-ios17.2" />
     </dependencies>
   </metadata>
     <files>
-      <file src="OpenTok.Net.targets" target="build" />
-      <file src="andr/native/lib/android/**" target="native/lib/android" />
-      <file src="ios/native/lib/ios/**" target="native/lib/ios" />
-      <file src="icon.png" target="images/" />
-      <file src="README.md" target="" />
-      <file src="README.txt" target="" />
-      <file src="ios/lib/net7.0-ios16.1/**" target="lib/net7.0-ios16.1" />
-	  <file src="ios/lib/net8.0-ios17.2/**" target="lib/net8.0-ios17.2" />
-	  <file src="andr/lib/net8.0-android34.0/**" target="lib/net8.0-android34.0" />
+      <file src="andr/build/OpenTok.Net.Android.targets" target="build" />
+      <file src="andr/native/lib/android/opentok-android-sdk.aar" target="native/lib/android" />
+      <file src="andr/icon.png" target="images/" />
+      <file src="andr/README.md" target="" />
+      <file src="andr/README.txt" target="" />
+      <file src="andr/lib/net8.0-android34.0/**" target="lib/net8.0-android34.0" />
 	  <file src="andr/lib/net7.0-android33.0/**" target="lib/net7.0-android33.0" />
     </files>
 </package>
