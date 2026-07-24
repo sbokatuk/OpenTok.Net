@@ -1,0 +1,19 @@
+# The package set, and the single source of truth for it.
+#
+# build/BuildNugets.sh packs in this order, the release and pull-request workflows generate their
+# package tables from it, and tests/OpenTok.Net.PackageTests reads it. Adding a package means adding
+# a row here and a project under src/ - nothing else keeps a second copy of the list.
+#
+# One row, deliberately: this repository is a façade. OpenTok.Net.iOS and OpenTok.Net.Android - the
+# packages that actually bind OpenTok.xcframework and opentok-android-sdk.aar - are built and
+# published from their own repositories and consumed here as ordinary pinned NuGet dependencies (see
+# OpenTokNetiOSVersion/OpenTokNetAndroidVersion in Directory.Build.props), not packed by this script.
+#
+# Columns
+#   id      the NuGet package id, which is also the directory under src/ and the .csproj name
+#   heads   which target-framework family the package ships:
+#             mobile - both android and ios heads
+#   deps    other ids in this repository it depends on, comma separated, or -
+#
+# id	heads	deps
+OpenTok.Net	mobile	-

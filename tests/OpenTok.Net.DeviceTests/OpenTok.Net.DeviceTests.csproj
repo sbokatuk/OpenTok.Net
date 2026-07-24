@@ -1,0 +1,73 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!--
+      Which of the packages' target frameworks to exercise. Overriding TargetFramework directly on
+      the command line breaks restore, so it goes through a property of our own - the same pattern
+      DatadogNet.DeviceTests uses.
+
+      One project with two heads, not two projects: the point of this suite is that the same checks
+      compile for both platforms even though OpenTok.Net has no shared façade - each check's body is
+      guarded by #if ANDROID / #if IOS - and two projects sharing a linked file would make it
+      possible for one of them to drift out of sync with the other.
+    -->
+    <OpenTokDeviceTargetFramework Condition=" '$(OpenTokDeviceTargetFramework)' == '' ">net9.0-ios18.0</OpenTokDeviceTargetFramework>
+    <TargetFramework>$(OpenTokDeviceTargetFramework)</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <CheckEolWorkloads>false</CheckEolWorkloads>
+
+    <ApplicationId>com.sbokatuk.opentoknet.devicetests</ApplicationId>
+    <ApplicationVersion>1</ApplicationVersion>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+    <SupportedOSPlatformVersion>$(OpenTokSupportedIosVersion)</SupportedOSPlatformVersion>
+    <!-- Streamed back by "simctl launch console-pty"; see run-simulator-tests.sh. -->
+    <MtouchExtraArgs>--setenv=MONO_LOG_LEVEL=error</MtouchExtraArgs>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <SupportedOSPlatformVersion>$(OpenTokSupportedAndroidVersion)</SupportedOSPlatformVersion>
+    <!--
+      The property, not an @(AndroidManifest) item - the .NET 8 Android SDK reads
+      $(AndroidManifest) and defaults it to the project root, failing with XA1018 otherwise.
+    -->
+    <AndroidManifest>Platforms/Android/AndroidManifest.xml</AndroidManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Platforms/**/*.cs" />
+    <None Include="Platforms/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
+    <Compile Include="Platforms/Android/**/*.cs" />
+    <None Remove="Platforms/Android/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">
+    <Compile Include="Platforms/iOS/**/*.cs" />
+    <None Remove="Platforms/iOS/**/*.cs" />
+  </ItemGroup>
+
+  <!--
+    Consumes the packed OpenTok.Net NuGet from ./artifacts rather than a ProjectReference, so the
+    checks exercise the artifact that actually gets published - including the per-head dependency
+    on OpenTok.Net.iOS / OpenTok.Net.Android, which a ProjectReference would bypass entirely. See
+    NuGet.config for the local feed.
+  -->
+  <PropertyGroup>
+    <OpenTokPackageVersion Condition=" '$(OpenTokPackageVersion)' == '' ">$(VersionPrefix)</OpenTokPackageVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenTok.Net" Version="$(OpenTokPackageVersion)" />
+  </ItemGroup>
+
+</Project>

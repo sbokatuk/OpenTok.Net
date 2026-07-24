@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!--
+      The only package this repository builds. It carries no code of its own - just a per-head
+      reference to the platform package that head actually needs, resolved by NuGet per target
+      framework exactly like DatadogNet.Maui resolves its own dependency. OpenTok.Net.iOS and
+      OpenTok.Net.Android are built and published from their own repositories, not this one; see
+      OpenTokNetiOSVersion/OpenTokNetAndroidVersion in Directory.Build.props for the pinned versions.
+
+      This replaces the old fat OpenTok.Net package, which was hand-assembled by unzipping the iOS
+      and Android .nupkg outputs and re-zipping their lib/ and native/ trees into one nuspec (see git
+      history of NugetPackages/ and target.sh) - a process that lost the standard binding SDK's own
+      native-reference packaging and had to re-create it with a "copy native/ into lib/<tfm> on the
+      consumer's first build" MSBuild target. A per-head PackageReference needs none of that: NuGet
+      already resolves exactly one of OpenTok.Net.iOS / OpenTok.Net.Android per target framework.
+    -->
+    <title>Xamarin bindings to the native Android and iOS Vonage OpenTok SDK.</title>
+    <description>MAUI Xamarin bindings for Vonage OpenTok SDK for Android and iOS. The Vonage OpenTok SDK lets you use video sessions in apps you build for Android and iOS.</description>
+    <summary>Xamarin Vonage .Net OpenTok Android iOS SDK, see tokbox.com</summary>
+    <tags>Opentok Tokbox Vonage SDK Xamarin Android Xamarin.Android MAUI MAUI.Android iOS MAUI.iOS Xamarin.iOS .Net Binding VideoCall WebRTC</tags>
+    <AssemblyName>OpenTok.Net</AssemblyName>
+    <PackageId>OpenTok.Net</PackageId>
+    <TargetFrameworks>$(OpenTokTargetFrameworks)</TargetFrameworks>
+    <!-- No managed or native code of its own to compile - only PackageReferences. -->
+    <NoWarn>$(NoWarn);NETSDK1206</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$([MSBuild]::GetTargetPlatformIdentifier($(TargetFramework)))' == 'android' ">
+    <SupportedOSPlatformVersion>$(OpenTokSupportedAndroidVersion)</SupportedOSPlatformVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$([MSBuild]::GetTargetPlatformIdentifier($(TargetFramework)))' == 'ios' ">
+    <SupportedOSPlatformVersion>$(OpenTokSupportedIosVersion)</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup Condition=" '$([MSBuild]::GetTargetPlatformIdentifier($(TargetFramework)))' == 'ios' ">
+    <PackageReference Include="OpenTok.Net.iOS" Version="$(OpenTokNetiOSVersion)" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$([MSBuild]::GetTargetPlatformIdentifier($(TargetFramework)))' == 'android' ">
+    <PackageReference Include="OpenTok.Net.Android" Version="$(OpenTokNetAndroidVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="docs\README.md" Pack="true" PackagePath="\" />
+    <None Include="docs\icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

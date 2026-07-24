@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    INTERNET and ACCESS_NETWORK_STATE, not CAMERA or RECORD_AUDIO: the checks construct Session
+    objects and read their properties but never publish or subscribe, so no media permission is
+    exercised. The two network permissions are what the SDK's manifest merger expects to find
+    already declared, even though this suite never calls connect().
+  -->
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <application android:label="OpenTok.Net e2e" android:usesCleartextTraffic="true" />
+</manifest>

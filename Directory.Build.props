@@ -1,0 +1,152 @@
+<Project>
+
+  <PropertyGroup>
+    <!--
+      This repository is a façade: it does not bind any native SDK itself. OpenTok.Net.iOS and
+      OpenTok.Net.Android - the packages that actually wrap OpenTok.xcframework and
+      opentok-android-sdk.aar - are built and published from their own repositories and consumed
+      here as ordinary NuGet dependencies, pinned below. This repository packs one thing,
+      OpenTok.Net, whose entire job is picking the right platform package per target framework - see
+      src/OpenTok.Net/OpenTok.Net.csproj and docs/packaging.md.
+
+      Package version is <OpenTok iOS SDK version>.<façade revision>, e.g. 2.27.1.900 - the same
+      "one native line names the package, the other is stated alongside it" scheme DatadogNet uses,
+      because the same problem applies here: OpenTok.Net.iOS and OpenTok.Net.Android are versioned
+      after two native SDKs (iOS and Android) that Vonage ships on separate cadences with numbers
+      that do not correspond to each other. This repository picks iOS because it is the line the
+      top-level OpenTok.Net package has always been versioned after (see the pre-existing 2.27.1.x
+      tags on nuget.org).
+
+      The fourth component belongs to this repository and advances when the façade itself changes
+      (new TFMs, a pinned platform package bump, packaging fixes) while the native SDK line stays
+      put.
+
+      900, not a small number picking up where the old target.sh scripts left off: nuget.org already
+      has real 2.27.1.x releases up to .817 (OpenTok.Net), .701 (OpenTok.Net.iOS and .Android) - a
+      side effect of BUILD being an arbitrary caller-supplied argument to target.sh rather than a
+      counter this repository tracked anywhere. A low revision here does not "reuse" a number so
+      much as risk restoring a real, older, differently-shaped package (net8.0-ios17.2, the pre-net10
+      layout) instead of the one this build just produced - confirmed by doing exactly that locally
+      with revision 9, which is a real published version. 900 leaves headway above every published
+      line without the false precision of picking the exact highest plus one.
+    -->
+    <OpenTokNativeVersion>2.27.1</OpenTokNativeVersion>
+    <OpenTokBindingRevision>900</OpenTokBindingRevision>
+    <VersionPrefix>$(OpenTokNativeVersion).$(OpenTokBindingRevision)</VersionPrefix>
+
+    <!--
+      The platform packages this façade is compiled against - the latest versions actually published
+      on nuget.org at the time of this migration. Pinned exactly, not as a floating range, for the
+      same reason DatadogNet pins its façade against its bindings: a floating reference would let a
+      consumer resolve a platform package this façade was never built or tested against. Bump these
+      by hand when OpenTok.Net.iOS/.Android publish a new version worth picking up.
+    -->
+    <OpenTokNetiOSVersion>2.27.1.701</OpenTokNetiOSVersion>
+    <OpenTokNetAndroidVersion>2.27.1.701</OpenTokNetAndroidVersion>
+  </PropertyGroup>
+
+  <!--
+    Target frameworks: net8, net9 and net10, in two pack passes - the same split DatadogNet uses and
+    for the same reason. Each .NET SDK's android/ios workloads ship reference packs for the current
+    target framework and the previous one: the .NET 9 band carries net8 + net9, the .NET 10 band
+    carries net10 only for this pair of platforms. No single installed SDK builds all three, so
+    build/BuildNugets.sh packs twice - once per band - and build/merge-packages.py grafts the net10
+    lib/ assets into the net9-band package afterwards. This applies to OpenTok.Net even though it has
+    no native code of its own: a plain multi-targeted library still needs the matching reference
+    assemblies for each -ios/-android target framework, which come from the same per-band workloads.
+
+    net8 therefore comes out of the same pass as net9 at no extra cost: the .NET 9 band's android/ios
+    workloads carry both reference packs already.
+  -->
+  <PropertyGroup>
+    <OpenTokSdkBand Condition=" '$(OpenTokSdkBand)' == '' ">net9</OpenTokSdkBand>
+
+    <OpenTokAndroidTargetFramework Condition=" '$(OpenTokSdkBand)' == 'net9' ">net8.0-android34.0;net9.0-android35.0</OpenTokAndroidTargetFramework>
+    <OpenTokiOSTargetFramework Condition=" '$(OpenTokSdkBand)' == 'net9' ">net8.0-ios18.0;net9.0-ios18.0</OpenTokiOSTargetFramework>
+
+    <OpenTokAndroidTargetFramework Condition=" '$(OpenTokSdkBand)' == 'net10' ">net10.0-android36.0</OpenTokAndroidTargetFramework>
+    <OpenTokiOSTargetFramework Condition=" '$(OpenTokSdkBand)' == 'net10' ">net10.0-ios26.0</OpenTokiOSTargetFramework>
+
+    <!--
+      OpenTok.Net ships the android and ios heads only - "mobile" in build/packages.tsv terms.
+      Unlike DatadogNet, there is no plain net8.0/net9.0/net10.0 asset to add here: OpenTok.Net.iOS
+      and OpenTok.Net.Android ship no platform-neutral asset either, so there is nothing for a
+      neutral OpenTok.Net asset to reference - it would ship an empty package advertising a
+      capability that does not exist. A multi-headed app that also targets Windows or Mac Catalyst
+      guards its OpenTok.Net PackageReference by target platform, same as it always has.
+    -->
+    <OpenTokTargetFrameworks>$(OpenTokAndroidTargetFramework);$(OpenTokiOSTargetFramework)</OpenTokTargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      24 on Android, 12.2 on iOS - the floors OpenTok.Net.Android and OpenTok.Net.iOS themselves
+      declare. Matched here rather than picked independently, so this façade never claims to support
+      an OS version the platform package underneath it does not.
+
+      24, not a lower number: opentok-android-sdk's own manifest declares minSdkVersion 24 - see
+      OpenTok.Net.Android's own OpenTok.Binding.props - and the Android manifest merger rejects an
+      app manifest claiming a lower floor outright (AAPT2 error AMM0000, "uses-sdk:minSdkVersion ..
+      cannot be smaller than version 24 declared in library"), confirmed by actually building
+      samples/OpenTok.Maui.Sample against 23 locally.
+
+      12.2, not the 12.0 Vonage's SDK documentation states as its deployment target: the installed
+      net8/net9 iOS workload refuses anything lower outright -
+
+          error : The SupportedOSPlatformVersion value '12.0' in the project file is lower than
+          the minimum value '12.2'.
+
+      - confirmed by actually building src/OpenTok.Net against 12.0 locally. 12.2 is also where
+        Apple's Swift runtime became ABI-stable, which is the reason DatadogNet's own iOS floor
+        lands on the same number for an unrelated SDK.
+    -->
+    <OpenTokSupportedAndroidVersion>24</OpenTokSupportedAndroidVersion>
+    <OpenTokSupportedIosVersion>12.2</OpenTokSupportedIosVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <CheckEolWorkloads>false</CheckEolWorkloads>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Authors>s.bokatuk</Authors>
+    <Company>s.bokatuk</Company>
+    <Copyright>Copyright © s.bokatuk</Copyright>
+    <PackageProjectUrl>https://github.com/sbokatuk/OpenTok.Net</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/sbokatuk/OpenTok.Net</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <!--
+      The code in this repository (the façade project, MSBuild plumbing, build and CI scripts) is
+      MIT. OpenTok.Net.iOS and OpenTok.Net.Android, which this façade depends on, each embed Vonage's
+      proprietary OpenTok/Vonage Video API SDK - not an open-source artifact with its own SPDX
+      identifier, and not something this repository can relicense on their behalf. This façade
+      therefore declares only MIT for its own code rather than inventing a second SPDX expression for
+      a proprietary vendor SDK it does not itself carry - see licenses/Vonage-OpenTok-SDK.md.
+    -->
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition=" '$(GITHUB_ACTIONS)' == 'true' ">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!--
+    Every packable project ships the MIT text itself, not just the PackageLicenseExpression. One
+    ItemGroup here rather than a None item per src/*/*.csproj, so a new package under src/ ships it
+    automatically.
+  -->
+  <ItemGroup Condition=" '$(IsPackable)' != 'false' ">
+    <None Include="$(MSBuildThisFileDirectory)licenses\MIT.txt" Pack="true" PackagePath="licenses\" Visible="false" />
+  </ItemGroup>
+
+</Project>

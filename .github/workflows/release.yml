@@ -1,0 +1,188 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: resolve release version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      prerelease: ${{ steps.resolve.outputs.prerelease }}
+      pinned-ios-version: ${{ steps.resolve.outputs.pinned-ios-version }}
+      pinned-android-version: ${{ steps.resolve.outputs.pinned-android-version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: resolve
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if ! printf '%s' "${version}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::tag '${GITHUB_REF_NAME}' does not look like a version (expected e.g. v2.27.1.900)"
+            exit 1
+          fi
+
+          # This repository is a façade and binds nothing itself - OpenTok.Net.iOS and
+          # OpenTok.Net.Android are built and published from their own repositories, pinned in
+          # Directory.Build.props. So the tag agrees with this repository's own façade revision
+          # (OpenTokNativeVersion.OpenTokBindingRevision), not with those pinned dependency versions.
+          native=$(sed -n 's:.*<OpenTokNativeVersion>\(.*\)</OpenTokNativeVersion>.*:\1:p' Directory.Build.props | head -1)
+          revision=$(sed -n 's:.*<OpenTokBindingRevision>\(.*\)</OpenTokBindingRevision>.*:\1:p' Directory.Build.props | head -1)
+          pinned_ios=$(sed -n 's:.*<OpenTokNetiOSVersion>\(.*\)</OpenTokNetiOSVersion>.*:\1:p' Directory.Build.props | head -1)
+          pinned_android=$(sed -n 's:.*<OpenTokNetAndroidVersion>\(.*\)</OpenTokNetAndroidVersion>.*:\1:p' Directory.Build.props | head -1)
+
+          if [ -z "${native}" ] || [ -z "${revision}" ] || [ -z "${pinned_ios}" ] || [ -z "${pinned_android}" ]; then
+            echo "::error::could not read the version properties from Directory.Build.props"
+            exit 1
+          fi
+
+          expected="${native}.${revision}"
+          if [ "${version%%-*}" != "${expected}" ]; then
+            # A tag that disagrees with the working tree would publish a package whose version says
+            # one thing and whose pinned dependencies say another, and nothing downstream could tell.
+            echo "::error::tag '${GITHUB_REF_NAME}' does not match Directory.Build.props (${expected}). Bump the props or move the tag."
+            exit 1
+          fi
+
+          case "${version}" in
+            *-*) prerelease=true ;;
+            *)   prerelease=false ;;
+          esac
+
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
+          echo "pinned-ios-version=${pinned_ios}" >> "$GITHUB_OUTPUT"
+          echo "pinned-android-version=${pinned_android}" >> "$GITHUB_OUTPUT"
+          echo "Releasing ${version} (prerelease=${prerelease})" >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    name: build
+    needs: version
+    uses: ./.github/workflows/build.yml
+    with:
+      version: ${{ needs.version.outputs.version }}
+      # The sample is a compile check on the public API, and the commit being tagged has already
+      # been through it on its pull request. Building it again here would put a MAUI workload
+      # install between the packages being built and being published, for a result already known.
+      build-sample: false
+
+  publish:
+    name: publish to nuget.org and create release
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    # Must match the Environment on the nuget.org trusted publishing policy for this workflow.
+    environment: nuget.org
+    permissions:
+      # contents: write creates the GitHub release; id-token: write lets the job request the OIDC
+      # token that nuget.org exchanges for a short-lived API key. Without the latter the token
+      # request fails silently and the login step gets no key.
+      contents: write
+      id-token: write
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Needed to find the previous tag when generating the changelog.
+          fetch-depth: 0
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      # nuget.org is published to first: a GitHub release linking to packages that failed to upload
+      # would be worse than a release created a moment late.
+      # Deliberately immediately before the push: the issued key is valid for one hour, and each
+      # OIDC token can be exchanged exactly once.
+      - name: Authenticate to nuget.org
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Push to nuget.org
+        run: |
+          dotnet nuget push "artifacts/*.nupkg" \
+            --source https://api.nuget.org/v3/index.json \
+            --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \
+            --skip-duplicate
+
+      - name: Compose release notes
+        env:
+          PINNED_IOS_VERSION: ${{ needs.version.outputs.pinned-ios-version }}
+          PINNED_ANDROID_VERSION: ${{ needs.version.outputs.pinned-android-version }}
+        run: |
+          previous=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" 2>/dev/null || true)
+
+          # A curated docs/release-notes/<version>.md replaces the generated commit list when one
+          # exists. The second lookup drops the prerelease suffix, so v2.27.1.900-beta.2 reuses the
+          # notes written for 2.27.1.900 rather than silently falling back to raw commit subjects.
+          notes="docs/release-notes/${VERSION}.md"
+          [ -f "${notes}" ] || notes="docs/release-notes/${VERSION%%-*}.md"
+
+          {
+            if [ -f "${notes}" ]; then
+              echo "==> using curated notes from ${notes}" >&2
+              cat "${notes}"
+            else
+              echo "## What's changed"
+              echo
+              if [ -n "${previous}" ]; then
+                git log --no-merges --pretty='- %s (%h)' "${previous}..${GITHUB_REF_NAME}"
+              else
+                echo "Initial release."
+              fi
+            fi
+            echo
+            if [ -n "${previous}" ]; then
+              echo "**Full changelog**: ${{ github.server_url }}/${{ github.repository }}/compare/${previous}...${GITHUB_REF_NAME}"
+              echo
+            fi
+
+            echo "## Package"
+            echo
+            echo "Pinned against [\`OpenTok.Net.iOS ${PINNED_IOS_VERSION}\`](https://www.nuget.org/packages/OpenTok.Net.iOS/${PINNED_IOS_VERSION}) and [\`OpenTok.Net.Android ${PINNED_ANDROID_VERSION}\`](https://www.nuget.org/packages/OpenTok.Net.Android/${PINNED_ANDROID_VERSION})."
+            echo
+            echo "| Package | Target frameworks | NuGet |"
+            echo "| --- | --- | --- |"
+            echo "| \`OpenTok.Net\` | \`net8.0-android34.0\`, \`net8.0-ios18.0\`, \`net9.0-android35.0\`, \`net9.0-ios18.0\`, \`net10.0-android36.0\`, \`net10.0-ios26.0\` | [${VERSION}](https://www.nuget.org/packages/OpenTok.Net/${VERSION}) |"
+            echo
+            echo "\`\`\`"
+            echo "dotnet add package OpenTok.Net --version ${VERSION}"
+            echo "\`\`\`"
+            echo
+            echo "## Licensing"
+            echo
+            echo "The code in this repository is MIT. OpenTok.Net.iOS and OpenTok.Net.Android, which"
+            echo "this package depends on, each embed Vonage's proprietary OpenTok / Vonage Video API"
+            echo "SDK, which is not open source - see licenses/Vonage-OpenTok-SDK.md."
+          } > release-notes.md
+
+          cat release-notes.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The packages themselves are not attached: nuget.org is the distribution channel, and the
+          # notes link to every published package instead.
+          gh release create "${GITHUB_REF_NAME}" \
+            --title "${VERSION}" \
+            --notes-file release-notes.md \
+            ${{ needs.version.outputs.prerelease == 'true' && '--prerelease' || '' }}
