@@ -293,6 +293,15 @@ jobs:
       # The sample consumes the packed packages exactly as a user would, so it is the only thing
       # that checks the umbrella OpenTok.Net package resolves the right platform sibling on each
       # head the way the README documents.
+      #
+      # -p:OpenTokSdkBand=net10 is required, not just --framework: the sample's own
+      # <TargetFrameworks> defaults to the net9 band's list (Directory.Build.props), which does not
+      # contain net10.0-android36.0/net10.0-ios26.0 at all. --framework still forces the inner build
+      # to that TargetFramework, but MauiVersion - resolved from the installed MAUI workload against
+      # the *declared* TargetFrameworks - then never resolves, and restore fails with NU1015 ("do not
+      # have a version specified") on Microsoft.Maui.Controls/.Compatibility. OpenTokSdkBand=net10
+      # switches <TargetFrameworks> itself onto the net10-only list so the declared and requested
+      # frameworks agree.
       - name: Build the sample against the packed packages
         run: |
           ( cd "${RUNNER_TEMP}/sample-sdk" \
@@ -302,5 +311,6 @@ jobs:
                    --configuration Debug \
                    --framework "${tfm}" \
                    -p:OpenTokPackageVersion="${{ inputs.version }}" \
+                   -p:OpenTokSdkBand=net10 \
                    || exit 1
                done )
