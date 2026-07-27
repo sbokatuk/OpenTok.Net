@@ -52,13 +52,19 @@ public static class SmokeTests
     private static void NativeLibraryIsLoaded()
     {
 #if IOS
-        // Dlopen-ing the framework by name is the same check the runtime performs the first time
-        // any OTSession-derived type is touched; doing it explicitly first gives a clearer failure
-        // than a bare dyld error the moment ConstructsSession runs.
-        var handle = Dlfcn.dlopen("@rpath/OpenTok.framework/OpenTok", 0);
-        Assert(handle != IntPtr.Zero, "dlopen(\"OpenTok.framework/OpenTok\") returned NULL - the " +
-            "xcframework did not link into this app.");
-        Dlfcn.dlclose(handle);
+        // Not dlopen-by-path: OTXCFramework ships OpenTok.framework as a *framework of static
+        // libraries* (see the MT7091 warning this package produces at build time), so its object
+        // code is linked directly into this app's own executable rather than copied into
+        // Frameworks/ as a separate Mach-O image - there is no "OpenTok.framework/OpenTok" file at
+        // @rpath for dlopen to find, whether or not the xcframework linked correctly. That made
+        // this check fail unconditionally (confirmed on a build where ConstructsSession, which
+        // actually drives the SDK, passed). objc_getClass, not dlopen, is what actually resolves a
+        // class either way - a dynamically linked framework's classes are visible through the exact
+        // same runtime lookup - and gives the same "clearer failure than a bare dyld error" this
+        // check was written for.
+        var handle = Class.GetHandle("OTSession");
+        Assert(handle != IntPtr.Zero, "objc_getClass(\"OTSession\") returned NULL - the xcframework " +
+            "did not link into this app.");
 #elif ANDROID
         // There is no Android equivalent of dlopen-by-name here: the .aar's native libraries load
         // implicitly the first time a JNI-backed type is touched, which ConstructsSession does. A
