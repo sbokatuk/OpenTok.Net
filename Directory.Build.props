@@ -40,8 +40,22 @@
       same reason DatadogNet pins its façade against its bindings: a floating reference would let a
       consumer resolve a platform package this façade was never built or tested against. Bump these
       by hand when OpenTok.Net.iOS/.Android publish a new version worth picking up.
+
+      OpenTokNetiOSVersion is a *prerelease* for now, not the usual exact stable pin: 2.27.1.701 (the
+      package actually published under this id before OpenTok.Net.iOS became its own repository) is
+      missing Network, Accelerate and CoreFoundation from its embedded LinkWith Frameworks list -
+      confirmed by downloading the real 2.27.1.701 .nupkg and reading its LinkWithAttribute directly,
+      not by inspecting source. OpenTok's own static xcframework has object files (network-path
+      monitoring, vImage-based pixel buffer conversion) that reference symbols from exactly those
+      three frameworks, and get force-loaded by the -ObjC linker flag regardless of whether this
+      façade's own code calls them - so linking a net10.0-ios26.0 app against 701 fails with
+      undefined symbols such as _nw_path_monitor_create and _kvImage_ARGBToYpCbCrMatrix_ITU_R_709_2.
+      OpenTok.Net.iOS's current source already lists all three frameworks correctly, but that fix has
+      only ever been packed as the 2.27.1.702-beta.1.1 PR build on nuget.org - no stable 2.27.1.702
+      has been tagged/released from that repository yet. Move this back to an exact stable version
+      once one exists.
     -->
-    <OpenTokNetiOSVersion>2.27.1.701</OpenTokNetiOSVersion>
+    <OpenTokNetiOSVersion>2.27.1.702-beta.1.1</OpenTokNetiOSVersion>
     <OpenTokNetAndroidVersion>2.27.1.701</OpenTokNetAndroidVersion>
   </PropertyGroup>
 
