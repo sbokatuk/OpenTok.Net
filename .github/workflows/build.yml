@@ -413,11 +413,27 @@ jobs:
       # net9, not net10 as the Debug sample job uses: this needs no scratch global.json, and the
       # two bands carry the same façade code — what differs between them is which reference packs
       # built it, which the package tests already assert is consistent.
+      #
+      # -p:TargetFrameworks=, not --framework. The two are not interchangeable here, and the
+      # difference is what broke this job:
+      #
+      #   --framework narrows the *inner* build but leaves <TargetFrameworks> declaring both
+      #   platforms, and restore evaluates the whole declared list. Each leg then demands the other
+      #   platform's workload — the Linux leg failed with NETSDK1178 asking for Microsoft.iOS.Sdk
+      #   packs that cannot exist on Linux at all, and the macOS leg with NETSDK1147 asking for the
+      #   android workload it has no reason to install.
+      #
+      # Overriding the property narrows the declared list itself, so restore only ever sees the one
+      # target framework this leg is for. A global property wins over the project's own conditional
+      # assignment, which is what makes this work at all.
+      #
+      # Unlike the Debug sample job, this cannot be fixed by installing both workloads: that job
+      # runs entirely on macOS, where both exist. This one deliberately builds Android on Linux.
       - name: Build the sample in Release
         run: |
           dotnet build samples/OpenTok.Sample.Maui/OpenTok.Sample.Maui.csproj \
             --configuration Release \
-            --framework "${{ matrix.target-framework }}" \
+            -p:TargetFrameworks="${{ matrix.target-framework }}" \
             -p:OpenTokPackageVersion="${{ inputs.version }}" \
             ${{ matrix.extra-args }}
 
