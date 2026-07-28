@@ -136,11 +136,26 @@ set -e
 if ! grep -q "OPENTOK_E2E_DONE PASS" "${LOG_FILE}"; then
     # No verdict usually means the app died before reporting, so keep the crash trace. A missing
     # or mis-stripped xcframework shows up here as a dyld failure naming the framework.
-    echo "==> no passing verdict; capturing crash output"
+    echo "==> no passing verdict on the console stream; capturing the device log"
     xcrun simctl spawn "${udid}" log show --last 2m --predicate "process == 'OpenTok.Net.DeviceTests'" \
         2>/dev/null | tail -100 | tee -a "${LOG_FILE}" || true
-    echo "::error::OpenTok simulator checks failed or timed out"
-    exit 1
+
+    # Re-check against the device log before failing. The console stream can lose its tail: it
+    # arrives over a pty that closes when the app exits, so a verdict printed immediately before
+    # termination may never be drained. That happened on net10.0-ios26.0 — eight passing checks, a
+    # truncated stream, and a job failure — and the dump just captured above is what proved the app
+    # had in fact reported. The app now flushes and waits before exiting, which should stop the
+    # stream losing anything; this is the second line of defence, and it costs one grep.
+    #
+    # os_log is authoritative here rather than a guess: it is written by the app itself, and it
+    # cannot contain a verdict the app never printed.
+    if grep -q "OPENTOK_E2E_DONE PASS" "${LOG_FILE}"; then
+        echo "==> verdict found in the device log; the console stream was truncated"
+        echo "::warning::simulator checks passed, but the console stream lost its tail — see run-simulator-tests.sh"
+    else
+        echo "::error::OpenTok simulator checks failed or timed out"
+        exit 1
+    fi
 fi
 
 echo "==> simulator checks passed"
