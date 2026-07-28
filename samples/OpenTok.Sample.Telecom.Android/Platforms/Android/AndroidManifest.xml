@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.CAMERA" />
+  <uses-permission android:name="android.permission.RECORD_AUDIO" />
+  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+  <!--
+    Telecom. MANAGE_OWN_CALLS is what lets an app register a PhoneAccount and place its calls
+    through android.telecom rather than pretending to be a normal app with audio; without it
+    TelecomManager refuses the registration, silently as far as the app can tell.
+  -->
+  <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
+  <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
+  <!--
+    Foreground service, and its two *types*.
+
+    Since Android 14 a foreground service must declare which type it is, and camera/microphone
+    access from the background is refused outright without the matching type — the app keeps
+    running and simply captures nothing, which presents as a call where the other side sees a
+    frozen frame. Both the permission and the type are required; declaring one without the other
+    fails at different points (install-time vs. startForeground).
+  -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <uses-feature android:name="android.hardware.camera" android:required="false" />
+  <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+  <application android:allowBackup="true"
+               android:icon="@mipmap/appicon"
+               android:roundIcon="@mipmap/appicon_round"
+               android:supportsRtl="true">
+
+    <!--
+      The ConnectionService the telecom framework binds to. android:exported and the
+      BIND_TELECOM_CONNECTION_SERVICE permission are both mandatory: the framework is a different
+      process, and it will only bind a service that has granted it exclusively.
+    -->
+    <service android:name="com.sbokatuk.opentok.sample.telecom.OpenTokConnectionService"
+             android:exported="true"
+             android:permission="android.permission.BIND_TELECOM_CONNECTION_SERVICE">
+      <intent-filter>
+        <action android:name="android.telecom.ConnectionService" />
+      </intent-filter>
+    </service>
+
+    <!--
+      The capture foreground service. foregroundServiceType must list every type the service
+      actually uses; the runtime cross-checks it against what the process touches while running.
+    -->
+    <service android:name="com.sbokatuk.opentok.sample.telecom.OpenTokCaptureService"
+             android:exported="false"
+             android:foregroundServiceType="camera|microphone" />
+
+  </application>
+
+</manifest>

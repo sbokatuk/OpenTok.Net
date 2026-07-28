@@ -107,6 +107,17 @@ public sealed partial class OpenTokSession
 
     private partial string? OwnConnectionIdNative() => _session?.Connection?.ConnectionId;
 
+    // Nothing to do. The iOS SDK observes UIApplication's own notifications and AVAudioSession
+    // interruptions itself, so there is no OTSession call to make here — Android's is the outlier,
+    // not this. See the doc comment on OpenTokSession.Pause for why the method exists anyway.
+    private partial void PauseNative()
+    {
+    }
+
+    private partial void ResumeNative()
+    {
+    }
+
     private partial void DisposeNative()
     {
         _session?.Dispose();

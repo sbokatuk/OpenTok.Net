@@ -304,6 +304,38 @@ public sealed partial class OpenTokSession : IDisposable
         UnsubscribeNative(subscriber);
     }
 
+    /// <summary>
+    /// Tells the SDK the app is going to the background.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Call it from the platform's own lifecycle hook — <c>Activity.OnPause</c> on Android, or
+    /// MAUI's <c>Window.Deactivated</c>. Video is suspended; the session stays connected.
+    /// </para>
+    /// <para>
+    /// Only Android does anything: its SDK expects the app to drive this and keeps capturing
+    /// otherwise, which on Android 14+ also needs a camera/microphone foreground service to be
+    /// legal at all. iOS handles backgrounding and audio interruptions itself, so this is a no-op
+    /// there — deliberately present on both so lifecycle code needs no <c>#if</c>.
+    /// </para>
+    /// </remarks>
+    public void Pause()
+    {
+        if (!_disposed)
+        {
+            PauseNative();
+        }
+    }
+
+    /// <summary>Tells the SDK the app has come back to the foreground. See <see cref="Pause"/>.</summary>
+    public void Resume()
+    {
+        if (!_disposed)
+        {
+            ResumeNative();
+        }
+    }
+
     /// <summary>Disconnects if still connected and releases the native session.</summary>
     /// <remarks>
     /// Required, not merely tidy: neither SDK releases a session because the managed wrapper became
@@ -417,6 +449,8 @@ public sealed partial class OpenTokSession : IDisposable
     private partial void ForceMuteStreamNative(OpenTokStream stream);
     private partial void ForceDisconnectNative(OpenTokConnection connection);
     private partial void SetEncryptionSecretNative(string secret);
+    private partial void PauseNative();
+    private partial void ResumeNative();
     private partial OpenTokCapabilities? GetCapabilitiesNative();
     private partial string? OwnConnectionIdNative();
     private partial void DisposeNative();

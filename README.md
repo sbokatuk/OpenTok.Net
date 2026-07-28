@@ -66,9 +66,32 @@ Connect, publish, subscribe — and the rest of what both SDKs actually do, all 
 | **Archiving** | recording started / stopped |
 | **Encryption** | end-to-end encryption secret |
 | **Transformers** | background blur, background replacement, noise suppression (needs a transformers package) |
+| **Lifecycle** | `Pause()` / `Resume()` for backgrounding |
+| **Calling services** | `OpenTokAudioSession` — hand audio to CallKit or `android.telecom` |
 
 `samples/OpenTok.Sample.Maui` demonstrates every row of that table in one page, with no
 per-platform code.
+
+## Samples
+
+| Sample | Platforms | Shows |
+| --- | --- | --- |
+| `OpenTok.Sample.Maui` | both | Everything in the table above, one page, no per-platform code |
+| `OpenTok.Sample.CallKit.iOS` | iOS | `CXProvider`, answering from the system call UI, audio handed to CallKit |
+| `OpenTok.Sample.Telecom.Android` | Android | `ConnectionService` + `PhoneAccount`, and a camera/microphone foreground service |
+
+The two calling-service samples are separate apps rather than branches of the first, deliberately.
+`CXProvider` and `ConnectionService` share a purpose and nothing else — on iOS the app owns a
+provider object and calls it; on Android the *framework* binds a service and asks the app for
+connections, which inverts the flow entirely. The one thing they do share is
+`OpenTokAudioSession`, which both call identically, and that is exactly the part the façade could
+honestly unify.
+
+**If your Android app can be backgrounded mid-call, you need a foreground service.** Since Android
+14, a background app is refused camera and microphone access without one carrying the matching
+`foregroundServiceType` — silently: the session stays connected and simply captures nothing, which
+the *other* participant sees as a frozen frame. `OpenTok.Sample.Maui` includes one
+(`Platforms/Android/OpenTokCaptureService.cs`) precisely because it is not optional.
 
 ## What the façade does and does not hide
 

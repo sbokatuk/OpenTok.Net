@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:opentok="clr-namespace:OpenTok.Net.Maui;assembly=OpenTok.Net.Maui"
+             x:Class="OpenTok.Sample.CallKit.iOS.MainPage"
+             Title="OpenTok + CallKit">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+
+            <Label Text="Enter credentials, then Report incoming call. iOS shows its own call UI — answer there, not here."
+                   FontSize="12" TextColor="Gray" />
+
+            <Entry x:Name="ApiKeyEntry" Placeholder="OpenTok API key" Keyboard="Numeric" />
+            <Entry x:Name="SessionIdEntry" Placeholder="session id" />
+            <Entry x:Name="TokenEntry" Placeholder="token" />
+            <Entry x:Name="CallerEntry" Placeholder="caller name" Text="Alex Morgan" />
+
+            <HorizontalStackLayout Spacing="8">
+                <Button x:Name="ReportButton" Text="Report incoming call" Clicked="OnReportClicked" />
+                <Button x:Name="EndButton" Text="Hang up" Clicked="OnEndClicked" IsEnabled="False" />
+            </HorizontalStackLayout>
+
+            <Label Text="Local" FontAttributes="Bold" />
+            <opentok:OpenTokVideoView x:Name="LocalView" HeightRequest="180" />
+
+            <Label Text="Remote" FontAttributes="Bold" />
+            <opentok:OpenTokVideoView x:Name="RemoteView" HeightRequest="180" />
+
+            <Label Text="Log" FontAttributes="Bold" />
+            <ScrollView x:Name="StatusScroll" HeightRequest="200">
+                <Label x:Name="StatusLabel" FontSize="12" />
+            </ScrollView>
+
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

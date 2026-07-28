@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    An Android-only sample: android.telecom integration, plus the camera/microphone foreground
+    service that any OpenTok Android app needs to keep capturing when backgrounded.
+
+    Not a target framework of the cross-platform sample, and not an #if branch of it.
+    ConnectionService and iOS's CXProvider share a purpose and nothing else — here the *framework*
+    binds a service and asks the app for connections, which inverts the flow entirely. What the two
+    samples do share is the audio handshake, OpenTokAudioSession, which both call identically.
+
+    See samples/OpenTok.Sample.CallKit.iOS for the other half.
+  -->
+  <PropertyGroup>
+    <OpenTokSdkBand Condition=" '$(OpenTokSdkBand)' == '' ">net9</OpenTokSdkBand>
+    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net9' ">net9.0-android35.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' ">net10.0-android36.0</TargetFrameworks>
+
+    <OutputType>Exe</OutputType>
+    <RootNamespace>OpenTok.Sample.Telecom.Android</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <CheckEolTargetFramework>false</CheckEolTargetFramework>
+    <CheckEolWorkloads>false</CheckEolWorkloads>
+
+    <ApplicationTitle>OpenTok Telecom</ApplicationTitle>
+    <ApplicationId>com.sbokatuk.opentok.sample.telecom</ApplicationId>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+
+    <SupportedOSPlatformVersion>$(OpenTokSupportedAndroidVersion)</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+    <MauiFont Include="Resources\Fonts\*" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OpenTokPackageVersion Condition=" '$(OpenTokPackageVersion)' == '' ">$(VersionPrefix)</OpenTokPackageVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.9" />
+
+    <!-- Exact versions, in brackets — see the cross-platform sample for why. -->
+    <PackageReference Include="OpenTok.Net" Version="[$(OpenTokPackageVersion)]" />
+    <PackageReference Include="OpenTok.Net.Maui" Version="[$(OpenTokPackageVersion)]" />
+  </ItemGroup>
+
+</Project>

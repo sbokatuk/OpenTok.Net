@@ -114,6 +114,11 @@ public partial class MainPage : ContentPage
         PublishButton.IsEnabled = false;
         SetPublishing(true);
 
+        // Android refuses camera and microphone access to a background app without this, silently
+        // — see CaptureLifetime. Started when publishing starts, not when the app backgrounds:
+        // by then it is too late to ask.
+        CaptureLifetime.Begin();
+
         _session.Publish(publisher);
         Append("publishing");
     }
@@ -395,6 +400,20 @@ public partial class MainPage : ContentPage
         ClearTransformersButton.IsEnabled = publishing;
     }
 
+    /// <summary>
+    /// Tells the SDK the app has gone to the background. Called from the window's Deactivated
+    /// event — see App.xaml.cs.
+    /// </summary>
+    /// <remarks>
+    /// Deliberately does <em>not</em> stop the foreground service: the service is what makes
+    /// capturing in the background legal at all, and stopping it here would produce exactly the
+    /// failure it exists to prevent.
+    /// </remarks>
+    public void PauseSession() => _session?.Pause();
+
+    /// <summary>Tells the SDK the app is back in the foreground.</summary>
+    public void ResumeSession() => _session?.Resume();
+
     private void UpdateRemoteHeading() => RemoteHeading.Text = $"Remote ({_remotes.Count})";
 
     private void TeardownPublisher()
@@ -415,6 +434,8 @@ public partial class MainPage : ContentPage
         _session?.Unpublish(_publisher);
         _publisher.Dispose();
         _publisher = null;
+
+        CaptureLifetime.End();
 
         SetPublishing(false);
         LocalLevel.Progress = 0;

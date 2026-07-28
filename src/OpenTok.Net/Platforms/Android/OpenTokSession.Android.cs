@@ -129,6 +129,12 @@ public sealed partial class OpenTokSession
 
     private partial string? OwnConnectionIdNative() => _session?.Connection?.ConnectionId;
 
+    // Session.OnPause/OnResume cascade to the publishers and subscribers this session owns, which
+    // is why the façade exposes it here rather than requiring the app to walk them.
+    private partial void PauseNative() => _session?.OnPause();
+
+    private partial void ResumeNative() => _session?.OnResume();
+
     private partial void DisposeNative()
     {
         if (_session is null)
