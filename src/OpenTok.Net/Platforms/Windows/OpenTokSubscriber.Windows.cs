@@ -18,6 +18,18 @@ public sealed partial class OpenTokSubscriber : IOpenTokVideoSource
     private OpenTokVideoView? _view;
     private Context? _context;
 
+    // The language that was *asked for*, which on Windows is not the same claim the other two heads
+    // make. OpenTok.Client's CaptionsTranslationLanguage is set-only: there is no getter.
+    //
+    // OpenTokSubscriber's setter reads the value back from the SDK on purpose — "the SDK silently
+    // declines a language it does not support, and reporting the requested value would be a lie".
+    // Windows cannot honour that, because there is nothing to read. So this reports the request, and
+    // if the SDK declined it the property will disagree with reality until Vonage adds a getter.
+    //
+    // Better than the alternatives: returning null would break the round-trip on every platform for
+    // the sake of one, and throwing would break the shared API.
+    private string? _requestedCaptionsTranslationLanguage;
+
     /// <inheritdoc />
     public FrameworkElement? NativeView => _view;
 
@@ -59,8 +71,13 @@ public sealed partial class OpenTokSubscriber : IOpenTokVideoSource
 
     private partial void SetSubscribeToCaptionsNative(bool value) => _subscriber!.SubscribeToCaptions = value;
 
-    private partial void SetCaptionsTranslationLanguageNative(string? value) =>
+    private partial void SetCaptionsTranslationLanguageNative(string? value)
+    {
         _subscriber!.CaptionsTranslationLanguage = value;
+        _requestedCaptionsTranslationLanguage = value;
+    }
+
+    private partial string? GetCaptionsTranslationLanguageNative() => _requestedCaptionsTranslationLanguage;
 
     private partial void SetAudioVolumeNative(double value) => _subscriber!.AudioVolume = value;
 

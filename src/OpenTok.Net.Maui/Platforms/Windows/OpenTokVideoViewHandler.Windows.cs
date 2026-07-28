@@ -1,12 +1,23 @@
 using Microsoft.Maui.Handlers;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
+
+// Aliased rather than imported wholesale, because .NET MAUI and WinUI name the same concepts
+// identically and a handler is the one place both are in scope at once: Grid, SolidColorBrush,
+// HorizontalAlignment and VerticalAlignment all exist in Microsoft.Maui.* and Microsoft.UI.Xaml.*,
+// and plain `using` directives for both make every one of them ambiguous (CS0104).
+//
+// A `W` prefix for the Windows side, so which framework a type belongs to is visible at the use
+// site rather than inferred from the using block.
+using WFrameworkElement = Microsoft.UI.Xaml.FrameworkElement;
+using WGrid = Microsoft.UI.Xaml.Controls.Grid;
+using WHorizontalAlignment = Microsoft.UI.Xaml.HorizontalAlignment;
+using WPanel = Microsoft.UI.Xaml.Controls.Panel;
+using WSolidColorBrush = Microsoft.UI.Xaml.Media.SolidColorBrush;
+using WVerticalAlignment = Microsoft.UI.Xaml.VerticalAlignment;
 
 namespace OpenTok.Net.Maui;
 
 /// <summary>
-/// Hosts an OpenTok video source in a WinUI <see cref="Grid"/> container.
+/// Hosts an OpenTok video source in a WinUI Grid container.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -23,7 +34,7 @@ namespace OpenTok.Net.Maui;
 /// otherwise an exception rather than a moved tile.
 /// </para>
 /// </remarks>
-public partial class OpenTokVideoViewHandler : ViewHandler<OpenTokVideoView, Panel>
+public partial class OpenTokVideoViewHandler : ViewHandler<OpenTokVideoView, WPanel>
 {
     /// <summary>The view has no properties of its own; the mapper exists because a handler needs one.</summary>
     public static readonly IPropertyMapper<OpenTokVideoView, OpenTokVideoViewHandler> VideoMapper =
@@ -35,18 +46,18 @@ public partial class OpenTokVideoViewHandler : ViewHandler<OpenTokVideoView, Pan
     }
 
     /// <inheritdoc />
-    protected override Panel CreatePlatformView() =>
-        new Grid
+    protected override WPanel CreatePlatformView() =>
+        new WGrid
         {
-            Background = new SolidColorBrush(Microsoft.UI.Colors.Black),
+            Background = new WSolidColorBrush(Microsoft.UI.Colors.Black),
 
-            // The video element is sized by the Grid, and anything overflowing is the letterbox
+            // The video element is sized by the grid, and anything overflowing is the letterbox
             // case — clipped so a UniformToFill source cannot paint over neighbouring tiles.
             Clip = null,
         };
 
     /// <inheritdoc />
-    protected override void ConnectHandler(Panel platformView)
+    protected override void ConnectHandler(WPanel platformView)
     {
         base.ConnectHandler(platformView);
 
@@ -55,7 +66,7 @@ public partial class OpenTokVideoViewHandler : ViewHandler<OpenTokVideoView, Pan
     }
 
     /// <inheritdoc />
-    protected override void DisconnectHandler(Panel platformView)
+    protected override void DisconnectHandler(WPanel platformView)
     {
         VirtualView.SourceChanged -= OnSourceChanged;
         Detach(VirtualView.Source);
@@ -100,7 +111,7 @@ public partial class OpenTokVideoViewHandler : ViewHandler<OpenTokVideoView, Pan
         MainThread.BeginInvokeOnMainThread(() => Show(view));
     }
 
-    private void Show(FrameworkElement? nativeView)
+    private void Show(WFrameworkElement? nativeView)
     {
         if (nativeView is null || PlatformView is null)
         {
@@ -112,13 +123,13 @@ public partial class OpenTokVideoViewHandler : ViewHandler<OpenTokVideoView, Pan
         // Removed from a previous parent first. Unlike UIView.AddSubview, which reparents silently,
         // adding a WinUI element that still has a parent throws — and the case that hits it is
         // ordinary: a subscriber tile moved between two views during a layout change.
-        if (nativeView.Parent is Panel previous)
+        if (nativeView.Parent is WPanel previous)
         {
             previous.Children.Remove(nativeView);
         }
 
-        nativeView.HorizontalAlignment = HorizontalAlignment.Stretch;
-        nativeView.VerticalAlignment = VerticalAlignment.Stretch;
+        nativeView.HorizontalAlignment = WHorizontalAlignment.Stretch;
+        nativeView.VerticalAlignment = WVerticalAlignment.Stretch;
 
         PlatformView.Children.Add(nativeView);
     }

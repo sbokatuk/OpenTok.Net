@@ -44,6 +44,16 @@
   <ItemGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' ">
     <PackageReference Include="OpenTok.Net.Win" Version="[$(OpenTokWinPackageVersion)]" />
     <PackageReference Include="OpenTok.Client" Version="[$(OpenTokClientPackageVersion)]" />
+
+    <!--
+      Named here even though OpenTok.Net.Win already brings it. The Windows head compiles against
+      WinUI types directly — FrameworkElement in IOpenTokVideoSource, DispatcherQueue in
+      OpenTokWindowsContext — and a project that compiles against a transitive dependency's types
+      breaks the moment that dependency stops needing them. Pinned to the same version
+      OpenTok.Net.Win was built against; two WinUI runtimes in one app is not a thing that resolves
+      quietly.
+    -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="$(WindowsAppSdkVersion)" />
   </ItemGroup>
 
 </Project>

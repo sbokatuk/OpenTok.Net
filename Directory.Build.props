@@ -76,6 +76,12 @@
     <OpenTokSupportedWindowsVersion>10.0.17763.0</OpenTokSupportedWindowsVersion>
 
     <!--
+      The Windows App SDK, which is what provides WinUI 3. Must match what OpenTok.Net.Win was built
+      against — both end up in one app, and two WinUI runtimes is not a thing that resolves quietly.
+    -->
+    <WindowsAppSdkVersion>2.3.1</WindowsAppSdkVersion>
+
+    <!--
       The Windows head's own package. Exact, like the other two — see the comment on those, and note
       the extra reason here: OpenTok.Net.Win carries the renderer that reads VideoFrame planes
       directly, so a mismatched pair is not a version-skew inconvenience but a memory-safety one.
