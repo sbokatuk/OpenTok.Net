@@ -85,6 +85,15 @@ jobs:
           # from the .NET 9 band, net10.0-android36.0 and net10.0-ios26.0 from the .NET 10 band. The
           # SDK is chosen by the global.json in the working directory, so each band is installed
           # from a scratch directory pinned to that SDK.
+          #
+          # maui-android/maui-ios, not just android/ios: this step feeds a pack of *both* packages,
+          # and OpenTok.Net.Maui sets UseMaui=true, so building it needs the MAUI workload even
+          # though nothing here launches an app. Without it the pack fails with NETSDK1147 naming
+          # maui-android. (The plain android/ios workloads come along as dependencies, so they do
+          # not need listing separately.)
+          #
+          # This is unrelated to the build-sample input, which only governs whether the separate
+          # sample job compiles the MAUI *sample* — packing the MAUI library is not optional.
           for major in 9 10; do
             dir="${RUNNER_TEMP}/sdk${major}"
             mkdir -p "${dir}"
@@ -92,7 +101,7 @@ jobs:
             echo "installing workloads for SDK ${sdk}"
             ( cd "${dir}" \
               && dotnet new globaljson --sdk-version "${sdk}" --force \
-              && dotnet workload install android ios )
+              && dotnet workload install maui-android maui-ios )
           done
 
       - name: Set up the Android SDK
