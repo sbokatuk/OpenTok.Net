@@ -85,6 +85,18 @@
       The Windows head's own package. Exact, like the other two — see the comment on those, and note
       the extra reason here: OpenTok.Net.Win carries the renderer that reads VideoFrame planes
       directly, so a mismatched pair is not a version-skew inconvenience but a memory-safety one.
+
+      Because the pin is exact, the Windows jobs here cannot run until this version exists on
+      nuget.org — restore fails with NU1102 and the whole Windows leg goes red for a reason that has
+      nothing to do with the change under review. While a Windows change is still in flight, point
+      this at the beta that repository's own pull request publishes:
+
+          <OpenTokWinPackageVersion>2.34.1.4-beta.7.3</OpenTokWinPackageVersion>
+
+      OpenTok.Net.Win's pr.yml pushes one per pull-request build and prints the exact version in the
+      job summary. Move it back to the stable version before tagging a release here — the release
+      notes for 2.34.1.4 spell out that ordering, and OpenTok.Net 2.34.1.2 is what happens when it
+      is not followed.
     -->
     <OpenTokWinPackageVersion>2.34.1.4</OpenTokWinPackageVersion>
 
