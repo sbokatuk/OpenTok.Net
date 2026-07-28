@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.CAMERA" />
+  <uses-permission android:name="android.permission.RECORD_AUDIO" />
+  <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+  <!--
+    Foreground service, and its two *types*.
+
+    Not optional for a call app. Since Android 14 an app in the background is refused camera and
+    microphone access unless a foreground service with the matching foregroundServiceType is
+    running — and refused silently: the app keeps running, the session stays connected, and it
+    simply captures nothing, which the *other* participant experiences as a frozen frame and
+    silence.
+
+    Both the permission and the type are needed, and a missing one fails at a different point: the
+    permission at startForeground, the type at the moment capture is attempted.
+  -->
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+  <uses-feature android:name="android.hardware.camera" android:required="false" />
+  <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+
+  <application android:allowBackup="true"
+               android:icon="@mipmap/appicon"
+               android:roundIcon="@mipmap/appicon_round"
+               android:supportsRtl="true">
+
+    <!--
+      foregroundServiceType must list every type the service actually uses; the runtime cross-checks
+      it against what the process touches while the service runs.
+    -->
+    <service android:name="com.sbokatuk.opentok.sample.OpenTokCaptureService"
+             android:exported="false"
+             android:foregroundServiceType="camera|microphone" />
+
+  </application>
+
+</manifest>

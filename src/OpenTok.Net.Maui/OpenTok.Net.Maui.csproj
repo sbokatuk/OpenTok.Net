@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The MAUI half: OpenTokVideoView and its per-platform handlers.
+
+    Kept out of OpenTok.Net itself so that package can be taken by a plain .NET for iOS or .NET for
+    Android app without dragging in Microsoft.Maui.Controls and everything under it. Apps that do
+    use MAUI add this one and get the view; apps that do not are unaffected. The split costs one
+    extra PackageReference and buys a core package with no UI framework in its graph.
+  -->
+
+  <Import Project="../OpenTok.Net.props" />
+
+  <PropertyGroup>
+    <UseMaui>true</UseMaui>
+    <SingleProject>false</SingleProject>
+
+    <AssemblyName>OpenTok.Net.Maui</AssemblyName>
+    <RootNamespace>OpenTok.Net.Maui</RootNamespace>
+    <PackageId>OpenTok.Net.Maui</PackageId>
+    <Title>.NET MAUI video view for the Vonage OpenTok (Video API) SDKs.</Title>
+    <Description>OpenTokVideoView, a .NET MAUI view that renders an OpenTok publisher's camera preview or a subscriber's remote video, over the cross-platform OpenTok.Net API. Handles the part every OpenTok MAUI app otherwise writes twice: OpenTok hands its render view out of the SDK rather than taking one in, so the view has to be attached into a container after the fact. Call UseOpenTok() in MauiProgram.</Description>
+    <PackageTags>$(PackageTags);dotnet-maui</PackageTags>
+  </PropertyGroup>
+
+  <!--
+    The version of OpenTok.Net to reference, which must be whatever this build is *producing*, not
+    what Directory.Build.props says.
+
+    $(Version) rather than $(VersionPrefix) when it is set: build/BuildNugets.sh passes
+    -p:Version=... for CI builds (a beta stamped with the PR and run number), and that arrives as a
+    global property visible during evaluation. $(VersionPrefix) is untouched by it, so referencing
+    that instead would have a beta OpenTok.Net.Maui depend on a stable OpenTok.Net that this build
+    never produced — restore then fails with NU1102, or worse, silently resolves a real older
+    release from nuget.org.
+
+    The fallback is not $(Version) unconditionally, because outside a -p:Version build the .NET SDK
+    computes $(Version) from VersionPrefix/VersionSuffix in its own targets — which run *after* this
+    file is evaluated, so reading it here would yield the empty string.
+  -->
+  <PropertyGroup>
+    <OpenTokCorePackageVersion Condition=" '$(OpenTokCorePackageVersion)' == '' And '$(Version)' != '' ">$(Version)</OpenTokCorePackageVersion>
+    <OpenTokCorePackageVersion Condition=" '$(OpenTokCorePackageVersion)' == '' ">$(VersionPrefix)</OpenTokCorePackageVersion>
+    <OpenTokCorePackageVersion Condition=" '$(VersionSuffix)' != '' And !$(OpenTokCorePackageVersion.Contains('-')) ">$(OpenTokCorePackageVersion)-$(VersionSuffix)</OpenTokCorePackageVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Exact version, in brackets — the two packages are versioned and released together and share
+      the per-platform IOpenTokVideoSource, so a resolved mismatch would mean a handler compiled
+      against a different declaration of that interface than the one present at runtime.
+    -->
+    <PackageReference Include="OpenTok.Net" Version="[$(OpenTokCorePackageVersion)]" />
+  </ItemGroup>
+
+</Project>

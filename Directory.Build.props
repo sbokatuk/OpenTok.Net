@@ -1,0 +1,88 @@
+<Project>
+
+  <PropertyGroup>
+    <!--
+      Package version is <native SDK version>.<binding revision>, matching the two platform
+      binding repositories this one sits on top of — sbokatuk/OpenTok.Net.iOS and
+      sbokatuk/OpenTok.Net.Android, both currently on Vonage's SDK 2.34.1.
+
+      OpenTokVersion is therefore not this repository's own choice: it is the version of the
+      *platform packages* being wrapped, and both must be on it. That is the point of stating it
+      once here — a façade whose two halves wrap different SDK generations is exactly the drift
+      this package exists to hide, and it would hide it silently.
+
+      The fourth component belongs to this repository and advances when the façade changes while
+      the platform packages stay put.
+
+      Starting at 1 is safe: the predecessor monorepo published OpenTok.Net up to 2.27.1.817 on
+      nuget.org under this package ID (plus the prerelease 2.27.1.900-beta.3.4; verified
+      2026-07-28 via https://api.nuget.org/v3-flatcontainer/opentok.net/index.json), and 2.34.1.1
+      sorts above every one of them. OpenTok.Net.Maui has never been published. Check that URL
+      before lowering any component — a version that does not sort above what is already published
+      makes the package invisible to `dotnet add package`.
+    -->
+    <OpenTokVersion>2.34.1</OpenTokVersion>
+    <OpenTokBindingRevision>3</OpenTokBindingRevision>
+    <VersionPrefix>$(OpenTokVersion).$(OpenTokBindingRevision)</VersionPrefix>
+
+    <!--
+      The platform packages this façade wraps, pinned exactly.
+
+      Written as literals rather than derived from $(OpenTokVersion): these are read by
+      .github/workflows/release.yml and by tests/OpenTok.Net.UnitTests with a plain sed/substring
+      match, neither of which evaluates MSBuild expressions — a `$(OpenTokVersion).1` here would
+      reach the release notes verbatim. They are also genuinely independent numbers, because each
+      binding repository advances its own fourth component on its own schedule; only the first three
+      components have to agree, and that is what the package tests assert.
+
+      Pinned, not floating: a range would let a consumer resolve a platform package this façade was
+      never built against. Bump by hand when a binding repository publishes something worth taking.
+    -->
+    <OpenTokIosPackageVersion>2.34.1.2</OpenTokIosPackageVersion>
+    <OpenTokAndroidPackageVersion>2.34.1.4</OpenTokAndroidPackageVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!--
+      Each platform's OS floor. Stated once here rather than per project because five things need
+      to agree on them — both packages, the sample, the device tests, and the README — and a façade
+      that claims to support an OS version the package underneath it does not simply fails to
+      restore, for whoever picks that version.
+
+      Neither number is a choice made in this repository:
+
+        * iOS 15.0 is OTXCFramework 2.34.1's own floor, per its podspec ("platforms": {"ios":
+          "15.0"}), raised from 13.0 by that SDK release.
+        * Android 24 is opentok-android-sdk's own minSdkVersion. The manifest merger rejects an app
+          manifest claiming anything lower outright, with AAPT2's uses-sdk:minSdkVersion error.
+
+      Re-check both against the platform binding repositories on every version bump; neither is
+      derivable from anything else here.
+    -->
+    <OpenTokSupportedIosVersion>15.0</OpenTokSupportedIosVersion>
+    <OpenTokSupportedAndroidVersion>24</OpenTokSupportedAndroidVersion>
+
+    <Authors>s.bokatuk</Authors>
+    <Company>s.bokatuk</Company>
+    <Copyright>Copyright © s.bokatuk</Copyright>
+    <PackageProjectUrl>https://github.com/sbokatuk/OpenTok.Net</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/sbokatuk/OpenTok.Net</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <!--
+      MIT covers the code in this repository. Vonage's own SDKs are distributed under their own SDK
+      licence terms, reached transitively through the platform binding packages; nothing is claimed
+      about them here.
+    -->
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition=" '$(GITHUB_ACTIONS)' == 'true' ">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+</Project>

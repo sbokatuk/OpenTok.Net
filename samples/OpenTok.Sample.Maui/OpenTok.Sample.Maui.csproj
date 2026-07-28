@@ -1,0 +1,82 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    One MAUI app, both platforms, no per-platform code — which is the whole claim these two packages
+    make, so the sample is also the check on it. See MainPage.xaml.cs.
+
+    Consumes the packed OpenTok.Net and OpenTok.Net.Maui packages from artifacts/ (see
+    NuGet.config), so it exercises exactly what gets published rather than the projects.
+
+    Two target frameworks per SDK band rather than all six: the sample is a compile check on the
+    public API plus a runnable demo, and one head per platform covers both. The other target
+    frameworks are exercised by the package tests and the device tests.
+
+    The band switch is not cosmetic. Passing a target framework on the command line forces the
+    *inner* build to it, but MauiVersion is resolved from the installed MAUI workload against the
+    project's *declared* TargetFrameworks — so if those still say net9, MauiVersion never resolves
+    and restore fails with NU1015 ("do not have a version specified") on Microsoft.Maui.Controls.
+    Switching the declared list is what makes the declared and requested frameworks agree. CI passes
+    -p:OpenTokSdkBand=net10 for exactly this reason.
+  -->
+  <PropertyGroup>
+    <OpenTokSdkBand Condition=" '$(OpenTokSdkBand)' == '' ">net9</OpenTokSdkBand>
+    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net9' ">net9.0-android35.0;net9.0-ios18.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' ">net10.0-android36.0;net10.0-ios26.0</TargetFrameworks>
+
+    <OutputType>Exe</OutputType>
+    <RootNamespace>OpenTok.Sample.Maui</RootNamespace>
+    <UseMaui>true</UseMaui>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+
+    <ApplicationTitle>OpenTok Sample</ApplicationTitle>
+    <ApplicationId>com.sbokatuk.opentok.sample</ApplicationId>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+  </PropertyGroup>
+
+  <!--
+    Each platform's floor is its native SDK's, taken from Directory.Build.props. Must be at least
+    what the packages declare, or restore fails.
+  -->
+  <PropertyGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' ">
+    <SupportedOSPlatformVersion>$(OpenTokSupportedIosVersion)</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' ">
+    <SupportedOSPlatformVersion>$(OpenTokSupportedAndroidVersion)</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+    <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
+    <MauiFont Include="Resources\Fonts\*" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!--
+      Defaults to the version in Directory.Build.props so a plain build after
+      "build/BuildNugets.sh" works; CI passes -p:OpenTokPackageVersion=... to pin the exact build
+      under test. Same property name the device tests and the e2e scripts use.
+    -->
+    <OpenTokPackageVersion Condition=" '$(OpenTokPackageVersion)' == '' ">$(VersionPrefix)</OpenTokPackageVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.9" />
+
+    <!--
+      Exact versions, in brackets — a bare version is a *minimum* to NuGet, so a build missing from
+      artifacts/ would silently resolve from nuget.org instead of failing the restore. OpenTok.Net
+      arrives transitively through OpenTok.Net.Maui; it is named explicitly because the sample uses
+      its types directly (OpenTokSession and friends in MainPage.xaml.cs), and a transitive
+      dependency is not something to rely on for a direct compile-time reference.
+    -->
+    <PackageReference Include="OpenTok.Net" Version="[$(OpenTokPackageVersion)]" />
+    <PackageReference Include="OpenTok.Net.Maui" Version="[$(OpenTokPackageVersion)]" />
+  </ItemGroup>
+
+</Project>

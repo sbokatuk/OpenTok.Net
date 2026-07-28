@@ -1,0 +1,459 @@
+name: build
+
+# Reusable pipeline: packs OpenTok.Net (the façade - it depends on OpenTok.Net.iOS/.Android, built
+# and published from their own repositories, not this one) at a given version, validates the packed
+# package, runs the device checks on both an iOS simulator and an Android emulator, builds the MAUI
+# sample against it, and uploads the package as an artifact. Callers (pr.yml, release.yml) decide
+# the version and what to do with the result.
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: NuGet version to stamp on every package.
+        required: true
+        type: string
+      e2e-ios-target-frameworks:
+        description: >
+          Which of the packages' target frameworks the simulator checks run against, as a JSON
+          array. Defaults to the two extremes: net8, the oldest asset set and the one nothing else
+          exercises, and net10, whose assets are produced by the merge step in BuildNugets.sh and so
+          are the only ones that could be grafted in wrong. net9 sits between them and comes out of
+          the same pack pass as net8, so testing it too would buy little for the runner minutes.
+        required: false
+        default: '["net8.0-ios18.0", "net10.0-ios26.0"]'
+        type: string
+      e2e-android-target-frameworks:
+        description: Same, for the emulator checks.
+        required: false
+        default: '["net8.0-android34.0", "net10.0-android36.0"]'
+        type: string
+      e2e-api-level:
+        description: Android API level the emulator boots.
+        required: false
+        default: 35
+        type: number
+      build-sample:
+        description: >
+          Whether to compile the MAUI sample against the packed packages. Defaults to true, because
+          it is a verification step and a new caller should get it. Releases turn it off: by then
+          the same commit has already been through it on the pull request, and it would otherwise
+          put a MAUI workload install between the packages being built and being published.
+        required: false
+        default: true
+        type: boolean
+      verify-release:
+        description: >
+          Whether to run the Release-configuration jobs — the ones that prove the façade's types
+          survive the managed linker and that the platform bindings underneath still link for a
+          real device. Defaults to true, so a pull request gets them; releases turn them off,
+          because the tagged commit has already been through them on its own PR.
+        required: false
+        default: true
+        type: boolean
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+
+jobs:
+  pack:
+    name: build and pack
+    timeout-minutes: 60
+    # macOS: an -ios target framework needs Xcode and the ios workload to resolve its reference
+    # assemblies, even though OpenTok.Net itself carries no native code - the same reason
+    # DatadogNet's own façade pack job runs on macOS despite binding nothing itself.
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: ./.github/actions/select-xcode
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # 9.0.x packs the net9 band (global.json pins it) and 10.0.x packs net10.
+          dotnet-version: |
+            9.0.x
+            10.0.x
+
+      - name: Install workloads for every SDK band
+        run: |
+          # Each band supplies different reference packs: net9.0-android35.0 and net9.0-ios18.0 come
+          # from the .NET 9 band, net10.0-android36.0 and net10.0-ios26.0 from the .NET 10 band. The
+          # SDK is chosen by the global.json in the working directory, so each band is installed
+          # from a scratch directory pinned to that SDK.
+          #
+          # maui-android/maui-ios, not just android/ios: this step feeds a pack of *both* packages,
+          # and OpenTok.Net.Maui sets UseMaui=true, so building it needs the MAUI workload even
+          # though nothing here launches an app. Without it the pack fails with NETSDK1147 naming
+          # maui-android. (The plain android/ios workloads come along as dependencies, so they do
+          # not need listing separately.)
+          #
+          # This is unrelated to the build-sample input, which only governs whether the separate
+          # sample job compiles the MAUI *sample* — packing the MAUI library is not optional.
+          for major in 9 10; do
+            dir="${RUNNER_TEMP}/sdk${major}"
+            mkdir -p "${dir}"
+            sdk=$(dotnet --list-sdks | grep "^${major}\." | tail -1 | cut -d' ' -f1)
+            echo "installing workloads for SDK ${sdk}"
+            ( cd "${dir}" \
+              && dotnet new globaljson --sdk-version "${sdk}" --force \
+              && dotnet workload install maui-android maui-ios )
+          done
+
+      - name: Set up the Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-34 platforms;android-35 platforms;android-36'
+
+      - name: Pack OpenTok.Net
+        run: ./build/BuildNugets.sh "${{ inputs.version }}"
+
+      # Two suites, one step. The unit tests check the repository's own bookkeeping (packages.tsv
+      # against src/, the .sln, the version pins) and need nothing built; the package tests read the
+      # .nupkg files just produced. Both run on a plain host with no workload.
+      - name: Validate packages
+        env:
+          OPENTOK_PACKAGE_VERSION: ${{ inputs.version }}
+        run: |
+          dotnet test tests/OpenTok.Net.UnitTests --logger 'trx;LogFileName=unit-tests.trx'
+          dotnet test tests/OpenTok.Net.PackageTests --logger 'trx;LogFileName=package-tests.trx'
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-test-results
+          path: '**/*.trx'
+          if-no-files-found: ignore
+          retention-days: 7
+
+  e2e-ios:
+    name: simulator checks (${{ matrix.target-framework }})
+    timeout-minutes: 45
+    needs: pack
+    runs-on: macos-15
+    strategy:
+      # fail-fast off: when one target framework breaks it is worth knowing whether the other did
+      # too, since "net8 only" and "both" point at very different causes.
+      fail-fast: false
+      matrix:
+        target-framework: ${{ fromJSON(inputs.e2e-ios-target-frameworks) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: ./.github/actions/select-xcode
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.x
+
+      - name: Install the iOS workload
+        run: |
+          # The device app is built for the target framework under test, so install the workload for
+          # the band that owns it. global.json pins .NET 9; the app may need .NET 10.
+          mkdir -p "${RUNNER_TEMP}/sdk10"
+          ( cd "${RUNNER_TEMP}/sdk10" \
+            && dotnet new globaljson --sdk-version "$(dotnet --list-sdks | grep '^10\.' | tail -1 | cut -d' ' -f1)" --force \
+            && dotnet workload install ios )
+          dotnet workload install ios
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      - name: Run checks on simulator
+        run: ./.github/scripts/run-simulator-tests.sh "${{ inputs.version }}" "${{ matrix.target-framework }}"
+
+      - name: Upload simulator logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-test-logs-${{ matrix.target-framework }}
+          path: simulator-tests.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  e2e-android:
+    name: emulator checks (${{ matrix.target-framework }})
+    timeout-minutes: 60
+    needs: pack
+    strategy:
+      fail-fast: false
+      matrix:
+        target-framework: ${{ fromJSON(inputs.e2e-android-target-frameworks) }}
+    # Linux, unlike the pack job: the emulator needs KVM, which the macOS runners do not have, and
+    # the Android head of the device app needs no Apple toolchain to build.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          # 8.0.x is here for the net8 matrix leg only - see the workload step below.
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - name: Install the Android workload for every SDK band
+        run: |
+          # One band per Android API level, because that is what owns the runtime packs: API 34 is
+          # the .NET 8 workload, 35 the .NET 9 one, 36 the .NET 10 one. Installing only the band
+          # global.json pins lets a net8 app compile and then fail at packaging with NETSDK1112.
+          # See the comment in run-emulator-tests.sh.
+          for major in 8 10; do
+            dir="${RUNNER_TEMP}/sdk${major}"
+            mkdir -p "${dir}"
+            ( cd "${dir}" \
+              && dotnet new globaljson --sdk-version "$(dotnet --list-sdks | grep "^${major}\." | tail -1 | cut -d' ' -f1)" --force \
+              && dotnet workload install android )
+          done
+          dotnet workload install android
+
+      - name: Set up the Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-34 platforms;android-35 platforms;android-36'
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      - name: Enable KVM
+        # The x86_64 emulator is unusably slow without hardware acceleration, and the runner image
+        # does not grant access to /dev/kvm by default.
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run checks on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ inputs.e2e-api-level }}
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: true
+          script: ./.github/scripts/run-emulator-tests.sh "${{ inputs.version }}" "${{ matrix.target-framework }}"
+
+      - name: Upload emulator logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-test-logs-${{ matrix.target-framework }}
+          path: emulator-tests.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  sample:
+    name: build sample app
+    timeout-minutes: 45
+    needs: pack
+    if: ${{ inputs.build-sample }}
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        uses: ./.github/actions/select-xcode
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install the MAUI workload for the .NET 10 band
+        run: |
+          # Workloads are installed per SDK band, and the SDK is resolved from the working
+          # directory - so this has to run from the same scratch global.json the build uses. At the
+          # repository root global.json pins .NET 9, so installing there puts maui on a band the
+          # build never sees, and the build then fails with NETSDK1147 telling you to install a
+          # workload you just installed.
+          dir="${RUNNER_TEMP}/sample-sdk"
+          mkdir -p "${dir}"
+          ( cd "${dir}" \
+            && dotnet new globaljson \
+                 --sdk-version "$(dotnet --list-sdks | grep '^10\.' | tail -1 | cut -d' ' -f1)" --force \
+            && dotnet workload install maui-android maui-ios )
+
+      - name: Set up the Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-36'
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      # The sample consumes the packed packages exactly as a user would, so it is the only thing
+      # that checks the umbrella OpenTok.Net package resolves the right platform sibling on each
+      # head the way the README documents.
+      #
+      # -p:OpenTokSdkBand=net10 is required, not just --framework: the sample's own
+      # <TargetFrameworks> defaults to the net9 band's list (Directory.Build.props), which does not
+      # contain net10.0-android36.0/net10.0-ios26.0 at all. --framework still forces the inner build
+      # to that TargetFramework, but MauiVersion - resolved from the installed MAUI workload against
+      # the *declared* TargetFrameworks - then never resolves, and restore fails with NU1015 ("do not
+      # have a version specified") on Microsoft.Maui.Controls/.Compatibility. OpenTokSdkBand=net10
+      # switches <TargetFrameworks> itself onto the net10-only list so the declared and requested
+      # frameworks agree.
+      - name: Build the sample against the packed packages
+        run: |
+          ( cd "${RUNNER_TEMP}/sample-sdk" \
+            && for tfm in net10.0-android36.0 net10.0-ios26.0; do
+                 echo "==> ${tfm}"
+                 dotnet build "${GITHUB_WORKSPACE}/samples/OpenTok.Sample.Maui/OpenTok.Sample.Maui.csproj" \
+                   --configuration Debug \
+                   --framework "${tfm}" \
+                   -p:OpenTokPackageVersion="${{ inputs.version }}" \
+                   -p:OpenTokSdkBand=net10 \
+                   || exit 1
+               done )
+
+  # What the Debug sample job cannot reach.
+  #
+  # A façade is more exposed to the managed linker than a plain binding is, not less: every path
+  # through OpenTok.Net ends in a platform partial whose only caller is a delegate or listener
+  # invoked by the SDK itself. Those callbacks are reached through the Objective-C runtime or JNI,
+  # not through anything the linker can see from a root — which is exactly the shape it decides is
+  # dead. Debug leaves the linker switched off, so the sample job can only say the packages
+  # restore and compile.
+  #
+  # The iOS leg also links for a *device*, which nothing else here does: the device slice is a
+  # separate slice of every xcframework, and a simulator build stays green through a package whose
+  # device slice was empty or built for the wrong minimum OS. Code signing is off — a public runner
+  # has no certificate, and it does not affect whether the thing links.
+  verify-release:
+    name: Release build (${{ matrix.platform }})
+    timeout-minutes: 45
+    needs: pack
+    if: ${{ inputs.verify-release }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      # fail-fast off: one platform failing and the other passing is a very different diagnosis
+      # from both failing, and that distinction is most of the value here.
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ios
+            runs-on: macos-15
+            target-framework: net9.0-ios18.0
+            workload: maui-ios
+            # A real device, not the simulator — see the job comment.
+            extra-args: -p:RuntimeIdentifier=ios-arm64 -p:EnableCodeSigning=false
+          - platform: android
+            runs-on: ubuntu-latest
+            target-framework: net9.0-android35.0
+            workload: maui-android
+            extra-args: -p:RuntimeIdentifier=android-arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        if: matrix.platform == 'ios'
+        uses: ./.github/actions/select-xcode
+
+      # opentok-android-sdk's classes.jar is Java 17 class file format, and a Release build
+      # compiles the generated Java glue for every bound listener.
+      - name: Set up JDK 17
+        if: matrix.platform == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Install the MAUI workload
+        run: dotnet workload install ${{ matrix.workload }}
+
+      - name: Set up the Android SDK
+        if: matrix.platform == 'android'
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-35'
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      # net9, not net10 as the Debug sample job uses: this needs no scratch global.json, and the
+      # two bands carry the same façade code — what differs between them is which reference packs
+      # built it, which the package tests already assert is consistent.
+      #
+      # -p:TargetFrameworks=, not --framework. The two are not interchangeable here, and the
+      # difference is what broke this job:
+      #
+      #   --framework narrows the *inner* build but leaves <TargetFrameworks> declaring both
+      #   platforms, and restore evaluates the whole declared list. Each leg then demands the other
+      #   platform's workload — the Linux leg failed with NETSDK1178 asking for Microsoft.iOS.Sdk
+      #   packs that cannot exist on Linux at all, and the macOS leg with NETSDK1147 asking for the
+      #   android workload it has no reason to install.
+      #
+      # Overriding the property narrows the declared list itself, so restore only ever sees the one
+      # target framework this leg is for. A global property wins over the project's own conditional
+      # assignment, which is what makes this work at all.
+      #
+      # Unlike the Debug sample job, this cannot be fixed by installing both workloads: that job
+      # runs entirely on macOS, where both exist. This one deliberately builds Android on Linux.
+      - name: Build the sample in Release
+        run: |
+          dotnet build samples/OpenTok.Sample.Maui/OpenTok.Sample.Maui.csproj \
+            --configuration Release \
+            -p:TargetFrameworks="${{ matrix.target-framework }}" \
+            -p:OpenTokPackageVersion="${{ inputs.version }}" \
+            ${{ matrix.extra-args }}
+
+      # The bundle existing is the assertion: on iOS the managed linker and AOT both run before the
+      # .app is assembled, and on Android r8 and the packaging step run before the APK is. A failure
+      # in any of them never gets far enough to produce one.
+      - name: Check the app was produced
+        run: |
+          case "${{ matrix.platform }}" in
+            ios)
+              produced="$(find samples/OpenTok.Sample.Maui/bin/Release -maxdepth 3 -name '*.app' -print -quit)"
+              ;;
+            android)
+              produced="$(find samples/OpenTok.Sample.Maui/bin/Release -name '*.apk' -print -quit)"
+              ;;
+          esac
+
+          if [ -z "${produced}" ]; then
+            echo "::error::no app bundle was produced for ${{ matrix.platform }}"
+            exit 1
+          fi
+
+          echo "produced ${produced}"

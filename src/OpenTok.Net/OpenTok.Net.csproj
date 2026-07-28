@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The cross-platform façade: one Session/Publisher/Subscriber API over the two raw platform
+    bindings. No MAUI dependency — a plain .NET for iOS or .NET for Android app can take this
+    package on its own. The MAUI video view lives in OpenTok.Net.Maui, which depends on this.
+  -->
+
+  <Import Project="../OpenTok.Net.props" />
+
+  <PropertyGroup>
+    <AssemblyName>OpenTok.Net</AssemblyName>
+    <RootNamespace>OpenTok.Net</RootNamespace>
+    <PackageId>OpenTok.Net</PackageId>
+    <Title>Cross-platform .NET bindings for the Vonage OpenTok (Video API) SDKs.</Title>
+    <Description>One Session/Publisher/Subscriber API over the native Vonage OpenTok (formerly TokBox) iOS and Android SDKs, so a .NET or .NET MAUI app writes its calling code once instead of behind #if IOS / #if ANDROID. Wraps OpenTok.Net.iOS and OpenTok.Net.Android, both on native SDK $(OpenTokVersion). Add OpenTok.Net.Maui for a ready-made video view.</Description>
+  </PropertyGroup>
+
+  <!--
+    The platform packages, each referenced only for the target frameworks it carries. Conditioned
+    rather than referenced unconditionally: NuGet would otherwise try to restore the iOS binding for
+    net8.0-android34.0, which it has no assets for.
+
+    Exact versions, in brackets. A bare version is a *minimum* to NuGet, so a mismatched local build
+    would silently resolve something else from nuget.org instead of failing the restore — and the
+    one thing this package must not do quietly is wrap two different SDK generations.
+  -->
+  <ItemGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' ">
+    <PackageReference Include="OpenTok.Net.iOS" Version="[$(OpenTokIosPackageVersion)]" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' ">
+    <PackageReference Include="OpenTok.Net.Android" Version="[$(OpenTokAndroidPackageVersion)]" />
+  </ItemGroup>
+
+</Project>
