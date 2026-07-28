@@ -50,7 +50,7 @@ Windows arrives differently from the other two. Vonage's `OpenTok.Client` is alr
 so there is no binding to generate — but it ships video renderers only for WPF and Windows Forms,
 and none at all on the `netstandard2.0` asset a modern .NET app resolves. .NET MAUI on Windows is
 WinUI 3, so without help a MAUI app can connect, publish and subscribe and have nowhere to put the
-picture. [`OpenTok.Net.Win`](https://github.com/sbokatuk/OpenTok.Net.Win) supplies the WinUI
+picture. [`OpenTok.Net.Win`](https://github.com/sbokatuk/OpenTok.Net.Win) 2.34.1.4 supplies the WinUI
 renderer; this façade uses it, and you do not reference it directly.
 
 Two things about Windows that the other platforms do not ask of you:

@@ -22,7 +22,7 @@
       makes the package invisible to `dotnet add package`.
     -->
     <OpenTokVersion>2.34.1</OpenTokVersion>
-    <OpenTokBindingRevision>3</OpenTokBindingRevision>
+    <OpenTokBindingRevision>4</OpenTokBindingRevision>
     <VersionPrefix>$(OpenTokVersion).$(OpenTokBindingRevision)</VersionPrefix>
 
     <!--
@@ -80,7 +80,7 @@
       the extra reason here: OpenTok.Net.Win carries the renderer that reads VideoFrame planes
       directly, so a mismatched pair is not a version-skew inconvenience but a memory-safety one.
     -->
-    <OpenTokWinPackageVersion>2.34.1.1</OpenTokWinPackageVersion>
+    <OpenTokWinPackageVersion>2.34.1.4</OpenTokWinPackageVersion>
 
     <!--
       Vonage's own Windows SDK. Arrives transitively through OpenTok.Net.Win anyway; pinned here
