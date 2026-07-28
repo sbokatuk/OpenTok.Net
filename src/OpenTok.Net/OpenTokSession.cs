@@ -84,6 +84,140 @@ public sealed partial class OpenTokSession : IDisposable
     /// </remarks>
     public event EventHandler<OpenTokStreamEventArgs>? StreamDropped;
 
+    /// <summary>Raised when another client joins the session.</summary>
+    /// <remarks>
+    /// A connection is not a stream: a participant who has joined but not published raises this and
+    /// never raises <see cref="StreamReceived"/>. Use it for a participant list; use
+    /// <see cref="StreamReceived"/> for video.
+    /// </remarks>
+    public event EventHandler<OpenTokConnectionEventArgs>? ConnectionCreated;
+
+    /// <summary>Raised when another client leaves the session.</summary>
+    public event EventHandler<OpenTokConnectionEventArgs>? ConnectionDestroyed;
+
+    /// <summary>Raised when a signal arrives — including one this client sent.</summary>
+    /// <remarks>
+    /// Check <see cref="OpenTokSignalEventArgs.FromSelf"/> before echoing it into a chat log.
+    /// </remarks>
+    public event EventHandler<OpenTokSignalEventArgs>? SignalReceived;
+
+    /// <summary>Raised when recording of the session starts.</summary>
+    public event EventHandler<OpenTokArchiveEventArgs>? ArchiveStarted;
+
+    /// <summary>Raised when recording of the session stops.</summary>
+    public event EventHandler<OpenTokArchiveEventArgs>? ArchiveStopped;
+
+    /// <summary>Raised when the connection drops and the SDK begins trying to recover it.</summary>
+    /// <remarks>
+    /// Not a disconnect. The SDK reconnects publishers and subscribers by itself; either
+    /// <see cref="Reconnected"/> or <see cref="Disconnected"/> follows. Worth surfacing in the UI,
+    /// because media is interrupted meanwhile and users otherwise assume the app has frozen.
+    /// </remarks>
+    public event EventHandler? Reconnecting;
+
+    /// <summary>Raised when the SDK has recovered a dropped connection.</summary>
+    public event EventHandler? Reconnected;
+
+    /// <summary>Raised when a moderator mutes the session, or lifts the mute state.</summary>
+    /// <remarks>
+    /// The boolean says which: <see langword="true"/> when streams were muted,
+    /// <see langword="false"/> when a moderator turned the mute state off again.
+    /// </remarks>
+    public event EventHandler<OpenTokMuteForcedEventArgs>? MuteForced;
+
+    /// <summary>
+    /// What this client's token permits, once connected; <see langword="null"/> before that.
+    /// </summary>
+    /// <remarks>
+    /// Read it after <see cref="Connected"/>. Hiding a moderator control the token cannot use is
+    /// better than letting the call fail — the SDKs answer a role error rather than doing nothing.
+    /// </remarks>
+    public OpenTokCapabilities? Capabilities => _disposed ? null : GetCapabilitiesNative();
+
+    /// <summary>
+    /// Sends a signal to every client in the session, or to one of them.
+    /// </summary>
+    /// <param name="type">
+    /// An application-defined type, so a receiver can tell a chat message from a "raise hand".
+    /// Optional, but a session using more than one kind of signal needs it.
+    /// </param>
+    /// <param name="data">The payload. Limited to 8 KB by the platform.</param>
+    /// <param name="to">
+    /// The one client to send to, or <see langword="null"/> to send to everyone — including this
+    /// client, which is what makes <see cref="OpenTokSignalEventArgs.FromSelf"/> necessary.
+    /// </param>
+    /// <exception cref="ObjectDisposedException">The session has been disposed.</exception>
+    /// <exception cref="InvalidOperationException">The session is not connected.</exception>
+    public void Signal(string? type, string? data, OpenTokConnection? to = null)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        RequireConnected(nameof(Signal));
+
+        SignalNative(type, data, to);
+    }
+
+    /// <summary>
+    /// Mutes every publisher in the session, optionally sparing some streams.
+    /// </summary>
+    /// <param name="except">Streams to leave unmuted — a moderator's own, typically.</param>
+    /// <remarks>
+    /// Requires a moderator token; see <see cref="Capabilities"/>. It also leaves the session in a
+    /// muted <em>state</em>, so clients joining later are muted too, until
+    /// <see cref="DisableForceMute"/> lifts it.
+    /// </remarks>
+    public void ForceMuteAll(IEnumerable<OpenTokStream>? except = null)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        RequireConnected(nameof(ForceMuteAll));
+
+        ForceMuteAllNative(except?.ToArray() ?? []);
+    }
+
+    /// <summary>Lifts the session-wide mute state left by <see cref="ForceMuteAll"/>.</summary>
+    public void DisableForceMute()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        RequireConnected(nameof(DisableForceMute));
+
+        DisableForceMuteNative();
+    }
+
+    /// <summary>Mutes one publisher. Requires a moderator token.</summary>
+    public void ForceMuteStream(OpenTokStream stream)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        RequireConnected(nameof(ForceMuteStream));
+
+        ForceMuteStreamNative(stream);
+    }
+
+    /// <summary>Disconnects another client from the session. Requires a moderator token.</summary>
+    public void ForceDisconnect(OpenTokConnection connection)
+    {
+        ArgumentNullException.ThrowIfNull(connection);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        RequireConnected(nameof(ForceDisconnect));
+
+        ForceDisconnectNative(connection);
+    }
+
+    /// <summary>
+    /// Turns on end-to-end encryption for this session, using a shared secret.
+    /// </summary>
+    /// <remarks>
+    /// Every client in the session must set the <em>same</em> secret, and must set it before
+    /// publishing or subscribing. A mismatch is not a connect failure — it is a subscriber error
+    /// per stream, which is easy to misread as a network problem.
+    /// </remarks>
+    public void SetEncryptionSecret(string secret)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(secret);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        SetEncryptionSecretNative(secret);
+    }
+
     /// <summary>Connects to the session. Returns immediately; watch <see cref="Connected"/> and <see cref="Failed"/>.</summary>
     /// <param name="token">A token minted for this session.</param>
     /// <exception cref="ArgumentException"><paramref name="token"/> is null, empty or whitespace.</exception>
@@ -233,6 +367,42 @@ public sealed partial class OpenTokSession : IDisposable
     private void OnStreamDropped(OpenTokStream stream) =>
         StreamDropped?.Invoke(this, new OpenTokStreamEventArgs(stream));
 
+    private void OnConnectionCreated(OpenTokConnection connection) =>
+        ConnectionCreated?.Invoke(this, new OpenTokConnectionEventArgs(connection));
+
+    private void OnConnectionDestroyed(OpenTokConnection connection) =>
+        ConnectionDestroyed?.Invoke(this, new OpenTokConnectionEventArgs(connection));
+
+    /// <summary>
+    /// Raises <see cref="SignalReceived"/>, working out whether this client sent it.
+    /// </summary>
+    /// <remarks>
+    /// The comparison is against the session's own connection id, which the platform half supplies
+    /// — neither SDK flags a signal as self-sent, and both deliver it back to the sender. Doing it
+    /// here means every app gets the answer rather than each one rediscovering the need for it.
+    /// </remarks>
+    private void OnSignalReceived(string? type, string? data, OpenTokConnection? from)
+    {
+        var fromSelf = from is not null &&
+                       OwnConnectionIdNative() is { Length: > 0 } own &&
+                       string.Equals(from.ConnectionId, own, StringComparison.Ordinal);
+
+        SignalReceived?.Invoke(this, new OpenTokSignalEventArgs(type, data, from, fromSelf));
+    }
+
+    private void OnArchiveStarted(string archiveId, string? archiveName) =>
+        ArchiveStarted?.Invoke(this, new OpenTokArchiveEventArgs(archiveId, archiveName));
+
+    private void OnArchiveStopped(string archiveId) =>
+        ArchiveStopped?.Invoke(this, new OpenTokArchiveEventArgs(archiveId, null));
+
+    private void OnReconnecting() => Reconnecting?.Invoke(this, EventArgs.Empty);
+
+    private void OnReconnected() => Reconnected?.Invoke(this, EventArgs.Empty);
+
+    private void OnMuteForced(bool active) =>
+        MuteForced?.Invoke(this, new OpenTokMuteForcedEventArgs(active));
+
     // The platform seam. Each is implemented exactly once per platform, under Platforms/.
     private partial void CreateNative();
     private partial void ConnectNative(string token);
@@ -241,5 +411,23 @@ public sealed partial class OpenTokSession : IDisposable
     private partial void UnpublishNative(OpenTokPublisher publisher);
     private partial void SubscribeNative(OpenTokSubscriber subscriber);
     private partial void UnsubscribeNative(OpenTokSubscriber subscriber);
+    private partial void SignalNative(string? type, string? data, OpenTokConnection? to);
+    private partial void ForceMuteAllNative(OpenTokStream[] except);
+    private partial void DisableForceMuteNative();
+    private partial void ForceMuteStreamNative(OpenTokStream stream);
+    private partial void ForceDisconnectNative(OpenTokConnection connection);
+    private partial void SetEncryptionSecretNative(string secret);
+    private partial OpenTokCapabilities? GetCapabilitiesNative();
+    private partial string? OwnConnectionIdNative();
     private partial void DisposeNative();
+}
+
+/// <summary>Carries whether a moderator muted the session or lifted the mute state.</summary>
+public sealed class OpenTokMuteForcedEventArgs(bool active) : EventArgs
+{
+    /// <summary>
+    /// <see langword="true"/> when streams were muted, <see langword="false"/> when a moderator
+    /// turned the session's mute state off again.
+    /// </summary>
+    public bool Active { get; } = active;
 }

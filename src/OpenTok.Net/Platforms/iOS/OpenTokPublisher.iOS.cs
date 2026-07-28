@@ -1,3 +1,4 @@
+using AVFoundation;
 using OpenTok.Net.iOS;
 using UIKit;
 
@@ -31,6 +32,8 @@ public sealed partial class OpenTokPublisher : IOpenTokVideoSource
     internal OTPublisher NativePublisher =>
         _publisher ?? throw new ObjectDisposedException(nameof(OpenTokPublisher));
 
+    private AudioLevelDelegate? _audioLevelDelegate;
+
     private partial void CreateNative(string? name)
     {
         // Constructing the publisher is what opens the camera and starts the preview — before any
@@ -38,11 +41,31 @@ public sealed partial class OpenTokPublisher : IOpenTokVideoSource
         var settings = new OTPublisherSettings { Name = name };
         _delegate = new PublisherDelegate(this);
         _publisher = new OTPublisher(_delegate, settings);
+
+        // A separate protocol from the main delegate, and a separate weakly-held property — so it
+        // needs its own field to stay alive, exactly like the session's.
+        _audioLevelDelegate = new AudioLevelDelegate(this);
+        _publisher.AudioLevelDelegate = _audioLevelDelegate;
     }
 
     private partial void SetPublishAudioNative(bool value) => _publisher!.PublishAudio = value;
 
     private partial void SetPublishVideoNative(bool value) => _publisher!.PublishVideo = value;
+
+    private partial void SetCameraPositionNative(OpenTokCameraPosition value) =>
+        _publisher!.CameraPosition = value is OpenTokCameraPosition.Front
+            ? AVCaptureDevicePosition.Front
+            : AVCaptureDevicePosition.Back;
+
+    private partial void SetCameraTorchNative(bool value) => _publisher!.CameraTorch = value;
+
+    private partial void SetCameraZoomFactorNative(float value) => _publisher!.CameraZoomFactor = value;
+
+    private partial void SetVideoTransformersNative(OpenTokTransformer[] transformers) =>
+        _publisher!.VideoTransformers = [.. transformers.Select(t => new OTVideoTransformer(t.Name, t.Properties))];
+
+    private partial void SetAudioTransformersNative(OpenTokTransformer[] transformers) =>
+        _publisher!.AudioTransformers = [.. transformers.Select(t => new OTAudioTransformer(t.Name, t.Properties))];
 
     private partial void DisposeNative()
     {
@@ -53,6 +76,7 @@ public sealed partial class OpenTokPublisher : IOpenTokVideoSource
         _publisher?.Dispose();
         _publisher = null;
         _delegate = null;
+        _audioLevelDelegate = null;
     }
 
     /// <summary>
@@ -73,5 +97,14 @@ public sealed partial class OpenTokPublisher : IOpenTokVideoSource
 
         public override void StreamDestroyed(OTPublisherKit publisher, OTStream stream) =>
             owner.OnStreamDestroyed(OpenTokSession.Convert(stream));
+
+        public override void MuteForced(OTPublisherKit publisher) => owner.OnMuteForced();
+    }
+
+    /// <summary>Forwards <c>OTPublisherKitAudioLevelDelegate</c> onto the façade's event.</summary>
+    private sealed class AudioLevelDelegate(OpenTokPublisher owner) : OTPublisherKitAudioLevelDelegate
+    {
+        public override void AudioLevelUpdated(OTPublisherKit publisher, float audioLevel) =>
+            owner.OnAudioLevel(audioLevel);
     }
 }

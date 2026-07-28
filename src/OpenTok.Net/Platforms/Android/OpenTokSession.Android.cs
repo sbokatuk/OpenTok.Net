@@ -1,4 +1,5 @@
 using Android.Content;
+using Android.Runtime;
 using Com.Opentok.Android;
 
 // ImplicitUsings puts System.IO in scope, where Stream is the far more famous type — so the plain
@@ -48,6 +49,17 @@ public sealed partial class OpenTokSession
         session.StreamReceived += OnNativeStreamReceived;
         session.StreamDropped += OnNativeStreamDropped;
 
+        // Android splits these across several listener interfaces rather than one protocol the way
+        // iOS does, but the binding generates an event per callback, so subscribing is uniform.
+        session.ConnectionCreated += OnNativeConnectionCreated;
+        session.ConnectionDestroyed += OnNativeConnectionDestroyed;
+        session.Signal += OnNativeSignal;
+        session.ArchiveStarted += OnNativeArchiveStarted;
+        session.ArchiveStopped += OnNativeArchiveStopped;
+        session.Reconnecting += OnNativeReconnecting;
+        session.Reconnected += OnNativeReconnected;
+        session.Mute += OnNativeMute;
+
         _session = session;
     }
 
@@ -67,6 +79,56 @@ public sealed partial class OpenTokSession
     private partial void UnsubscribeNative(OpenTokSubscriber subscriber) =>
         _session!.Unsubscribe(subscriber.NativeSubscriber);
 
+    private partial void SignalNative(string? type, string? data, OpenTokConnection? to)
+    {
+        // Two overloads rather than a nullable connection: passing null to the three-argument
+        // SendSignal is not the same as calling the two-argument one on this SDK.
+        if (to is null)
+        {
+            _session!.SendSignal(type, data);
+        }
+        else
+        {
+            _session!.SendSignal(type, data, (Connection)to.NativeConnection);
+        }
+    }
+
+    /// <summary>
+    /// Force-mutes everything, sparing <paramref name="except"/>.
+    /// </summary>
+    /// <remarks>
+    /// The Java signature is <c>forceMuteAll(Iterable&lt;Stream&gt;)</c>, which the binding projects
+    /// as <c>Java.Lang.IIterable</c> — a Java interface, so a C# array or List cannot be passed. A
+    /// JavaList is a real java.util.ArrayList on the other side of JNI and therefore genuinely is an
+    /// Iterable; JavaCast is what asks the runtime for a peer of that interface type, since C# has
+    /// no static relationship between the two.
+    /// </remarks>
+    private partial void ForceMuteAllNative(OpenTokStream[] except)
+    {
+        using var streams = new JavaList<OpenTokNativeStream>(
+            [.. except.Select(s => (OpenTokNativeStream)s.NativeStream)]);
+
+        _session!.ForceMuteAll(streams.JavaCast<Java.Lang.IIterable>());
+    }
+
+    private partial void DisableForceMuteNative() => _session!.DisableForceMute();
+
+    private partial void ForceMuteStreamNative(OpenTokStream stream) =>
+        _session!.ForceMuteStream((OpenTokNativeStream)stream.NativeStream);
+
+    private partial void ForceDisconnectNative(OpenTokConnection connection) =>
+        _session!.ForceDisconnect((Connection)connection.NativeConnection);
+
+    private partial void SetEncryptionSecretNative(string secret) =>
+        _session!.SetEncryptionSecret(secret);
+
+    private partial OpenTokCapabilities? GetCapabilitiesNative() =>
+        _session?.GetCapabilities() is { } c
+            ? new OpenTokCapabilities(c.CanPublish, c.CanSubscribe, c.CanForceMute, c.CanForceDisconnect)
+            : null;
+
+    private partial string? OwnConnectionIdNative() => _session?.Connection?.ConnectionId;
+
     private partial void DisposeNative()
     {
         if (_session is null)
@@ -82,6 +144,14 @@ public sealed partial class OpenTokSession
         _session.Error -= OnNativeError;
         _session.StreamReceived -= OnNativeStreamReceived;
         _session.StreamDropped -= OnNativeStreamDropped;
+        _session.ConnectionCreated -= OnNativeConnectionCreated;
+        _session.ConnectionDestroyed -= OnNativeConnectionDestroyed;
+        _session.Signal -= OnNativeSignal;
+        _session.ArchiveStarted -= OnNativeArchiveStarted;
+        _session.ArchiveStopped -= OnNativeArchiveStopped;
+        _session.Reconnecting -= OnNativeReconnecting;
+        _session.Reconnected -= OnNativeReconnected;
+        _session.Mute -= OnNativeMute;
 
         _session.Dispose();
         _session = null;
@@ -109,6 +179,38 @@ public sealed partial class OpenTokSession
         }
     }
 
+    private void OnNativeConnectionCreated(object? sender, Session.ConnectionCreatedEventArgs e)
+    {
+        if (e.Connection is not null)
+        {
+            OnConnectionCreated(Convert(e.Connection));
+        }
+    }
+
+    private void OnNativeConnectionDestroyed(object? sender, Session.ConnectionDestroyedEventArgs e)
+    {
+        if (e.Connection is not null)
+        {
+            OnConnectionDestroyed(Convert(e.Connection));
+        }
+    }
+
+    private void OnNativeSignal(object? sender, Session.SignalEventArgs e) =>
+        OnSignalReceived(e.Type, e.Data, e.Connection is null ? null : Convert(e.Connection));
+
+    private void OnNativeArchiveStarted(object? sender, Session.ArchiveStartedEventArgs e) =>
+        OnArchiveStarted(e.ArchiveId ?? "", e.ArchiveName);
+
+    private void OnNativeArchiveStopped(object? sender, Session.ArchiveStoppedEventArgs e) =>
+        OnArchiveStopped(e.ArchiveId ?? "");
+
+    private void OnNativeReconnecting(object? sender, Session.ReconnectingEventArgs e) => OnReconnecting();
+
+    private void OnNativeReconnected(object? sender, Session.ReconnectedEventArgs e) => OnReconnected();
+
+    private void OnNativeMute(object? sender, Session.MuteEventArgs e) =>
+        OnMuteForced(e.MuteForcedInfo?.Active ?? false);
+
     /// <summary>Flattens an <c>OpentokError</c> onto the façade's error type.</summary>
     /// <remarks>
     /// <c>GetErrorCode()</c> returns a Java enum wrapper, not a number — <c>OpentokError.ErrorCode</c>
@@ -121,4 +223,7 @@ public sealed partial class OpenTokSession
 
     internal static OpenTokStream Convert(OpenTokNativeStream stream) =>
         new(stream.StreamId!, stream.Name, stream.HasAudio, stream.HasVideo, stream);
+
+    internal static OpenTokConnection Convert(Connection connection) =>
+        new(connection.ConnectionId!, connection.Data, connection);
 }

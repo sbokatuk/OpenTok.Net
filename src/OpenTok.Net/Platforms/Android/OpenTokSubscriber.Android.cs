@@ -33,6 +33,8 @@ public sealed partial class OpenTokSubscriber : IOpenTokVideoSource
         subscriber.Connected += OnNativeConnected;
         subscriber.SubscriberDisconnected += OnNativeDisconnected;
         subscriber.Error += OnNativeError;
+        subscriber.AudioLevel += OnNativeAudioLevel;
+        subscriber.Captions += OnNativeCaptions;
 
         _subscriber = subscriber;
     }
@@ -40,6 +42,16 @@ public sealed partial class OpenTokSubscriber : IOpenTokVideoSource
     private partial void SetSubscribeToAudioNative(bool value) => _subscriber!.SubscribeToAudio = value;
 
     private partial void SetSubscribeToVideoNative(bool value) => _subscriber!.SubscribeToVideo = value;
+
+    private partial void SetSubscribeToCaptionsNative(bool value) => _subscriber!.SubscribeToCaptions = value;
+
+    private partial void SetCaptionsTranslationLanguageNative(string? value) =>
+        _subscriber!.CaptionsTranslationLanguage = value;
+
+    private partial string? GetCaptionsTranslationLanguageNative() =>
+        _subscriber?.CaptionsTranslationLanguage;
+
+    private partial void SetAudioVolumeNative(double value) => _subscriber!.AudioVolume = value;
 
     private partial void DisposeNative()
     {
@@ -51,6 +63,8 @@ public sealed partial class OpenTokSubscriber : IOpenTokVideoSource
         _subscriber.Connected -= OnNativeConnected;
         _subscriber.SubscriberDisconnected -= OnNativeDisconnected;
         _subscriber.Error -= OnNativeError;
+        _subscriber.AudioLevel -= OnNativeAudioLevel;
+        _subscriber.Captions -= OnNativeCaptions;
 
         (_subscriber.View?.Parent as global::Android.Views.ViewGroup)?.RemoveView(_subscriber.View);
 
@@ -75,4 +89,10 @@ public sealed partial class OpenTokSubscriber : IOpenTokVideoSource
 
     private void OnNativeError(object? sender, SubscriberKit.ErrorEventArgs e) =>
         OnFailed(OpenTokSession.Convert(e.Error));
+
+    private void OnNativeAudioLevel(object? sender, SubscriberKit.AudioLevelEventArgs e) =>
+        OnAudioLevel(e.AudioLevel);
+
+    private void OnNativeCaptions(object? sender, SubscriberKit.CaptionsEventArgs e) =>
+        OnCaption(e.Text ?? "", e.IsFinal);
 }

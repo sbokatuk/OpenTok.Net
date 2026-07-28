@@ -22,7 +22,7 @@
       makes the package invisible to `dotnet add package`.
     -->
     <OpenTokVersion>2.34.1</OpenTokVersion>
-    <OpenTokBindingRevision>1</OpenTokBindingRevision>
+    <OpenTokBindingRevision>2</OpenTokBindingRevision>
     <VersionPrefix>$(OpenTokVersion).$(OpenTokBindingRevision)</VersionPrefix>
 
     <!--
@@ -38,8 +38,8 @@
       Pinned, not floating: a range would let a consumer resolve a platform package this façade was
       never built against. Bump by hand when a binding repository publishes something worth taking.
     -->
-    <OpenTokIosPackageVersion>2.34.1.1</OpenTokIosPackageVersion>
-    <OpenTokAndroidPackageVersion>2.34.1.2</OpenTokAndroidPackageVersion>
+    <OpenTokIosPackageVersion>2.34.1.2</OpenTokIosPackageVersion>
+    <OpenTokAndroidPackageVersion>2.34.1.3</OpenTokAndroidPackageVersion>
   </PropertyGroup>
 
   <PropertyGroup>

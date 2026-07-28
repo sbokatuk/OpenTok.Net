@@ -42,6 +42,15 @@ on:
         required: false
         default: true
         type: boolean
+      verify-release:
+        description: >
+          Whether to run the Release-configuration jobs — the ones that prove the façade's types
+          survive the managed linker and that the platform bindings underneath still link for a
+          real device. Defaults to true, so a pull request gets them; releases turn them off,
+          because the tagged commit has already been through them on its own PR.
+        required: false
+        default: true
+        type: boolean
 
 env:
   DOTNET_NOLOGO: 'true'
@@ -319,3 +328,107 @@ jobs:
                    -p:OpenTokSdkBand=net10 \
                    || exit 1
                done )
+
+  # What the Debug sample job cannot reach.
+  #
+  # A façade is more exposed to the managed linker than a plain binding is, not less: every path
+  # through OpenTok.Net ends in a platform partial whose only caller is a delegate or listener
+  # invoked by the SDK itself. Those callbacks are reached through the Objective-C runtime or JNI,
+  # not through anything the linker can see from a root — which is exactly the shape it decides is
+  # dead. Debug leaves the linker switched off, so the sample job can only say the packages
+  # restore and compile.
+  #
+  # The iOS leg also links for a *device*, which nothing else here does: the device slice is a
+  # separate slice of every xcframework, and a simulator build stays green through a package whose
+  # device slice was empty or built for the wrong minimum OS. Code signing is off — a public runner
+  # has no certificate, and it does not affect whether the thing links.
+  verify-release:
+    name: Release build (${{ matrix.platform }})
+    timeout-minutes: 45
+    needs: pack
+    if: ${{ inputs.verify-release }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      # fail-fast off: one platform failing and the other passing is a very different diagnosis
+      # from both failing, and that distinction is most of the value here.
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ios
+            runs-on: macos-15
+            target-framework: net9.0-ios18.0
+            workload: maui-ios
+            # A real device, not the simulator — see the job comment.
+            extra-args: -p:RuntimeIdentifier=ios-arm64 -p:EnableCodeSigning=false
+          - platform: android
+            runs-on: ubuntu-latest
+            target-framework: net9.0-android35.0
+            workload: maui-android
+            extra-args: -p:RuntimeIdentifier=android-arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        if: matrix.platform == 'ios'
+        uses: ./.github/actions/select-xcode
+
+      # opentok-android-sdk's classes.jar is Java 17 class file format, and a Release build
+      # compiles the generated Java glue for every bound listener.
+      - name: Set up JDK 17
+        if: matrix.platform == 'android'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Install the MAUI workload
+        run: dotnet workload install ${{ matrix.workload }}
+
+      - name: Set up the Android SDK
+        if: matrix.platform == 'android'
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-35'
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      # net9, not net10 as the Debug sample job uses: this needs no scratch global.json, and the
+      # two bands carry the same façade code — what differs between them is which reference packs
+      # built it, which the package tests already assert is consistent.
+      - name: Build the sample in Release
+        run: |
+          dotnet build samples/OpenTok.Sample.Maui/OpenTok.Sample.Maui.csproj \
+            --configuration Release \
+            --framework "${{ matrix.target-framework }}" \
+            -p:OpenTokPackageVersion="${{ inputs.version }}" \
+            ${{ matrix.extra-args }}
+
+      # The bundle existing is the assertion: on iOS the managed linker and AOT both run before the
+      # .app is assembled, and on Android r8 and the packaging step run before the APK is. A failure
+      # in any of them never gets far enough to produce one.
+      - name: Check the app was produced
+        run: |
+          case "${{ matrix.platform }}" in
+            ios)
+              produced="$(find samples/OpenTok.Sample.Maui/bin/Release -maxdepth 3 -name '*.app' -print -quit)"
+              ;;
+            android)
+              produced="$(find samples/OpenTok.Sample.Maui/bin/Release -name '*.apk' -print -quit)"
+              ;;
+          esac
+
+          if [ -z "${produced}" ]; then
+            echo "::error::no app bundle was produced for ${{ matrix.platform }}"
+            exit 1
+          fi
+
+          echo "produced ${produced}"

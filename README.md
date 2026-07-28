@@ -43,9 +43,32 @@ written twice.
 
 Both carry `net8.0`, `net9.0` and `net10.0` for iOS and Android — six target frameworks each.
 
+For background blur, background replacement or noise suppression, add the platform transformers
+package too — `OpenTok.Net.Transformers.iOS` and/or `OpenTok.Net.Transformers.Android`. Neither is
+a dependency of anything here, because each costs around 70 MB; `OpenTokTransformer` is present in
+`OpenTok.Net` either way, and reports that the library is not loaded if you use it without them.
+
 The split keeps MAUI out of the core package's dependency graph: a plain .NET for iOS or .NET for
 Android app can take `OpenTok.Net` on its own and render video however it likes, reaching the
 SDK's view through `IOpenTokVideoSource.NativeView`.
+
+## What it covers
+
+Connect, publish, subscribe — and the rest of what both SDKs actually do, all of it cross-platform:
+
+| | |
+| --- | --- |
+| **Session** | connect / disconnect, reconnection events, participant join / leave, capabilities from the token |
+| **Signalling** | send to everyone or to one participant, with `FromSelf` worked out for you |
+| **Moderation** | force-mute all or one stream, lift the mute state, force-disconnect |
+| **Publisher** | mute audio / video, camera position, torch, zoom, audio level, forced-mute notification |
+| **Subscriber** | per-stream audio and video toggles, volume, audio level, captions and translation language |
+| **Archiving** | recording started / stopped |
+| **Encryption** | end-to-end encryption secret |
+| **Transformers** | background blur, background replacement, noise suppression (needs a transformers package) |
+
+`samples/OpenTok.Sample.Maui` demonstrates every row of that table in one page, with no
+per-platform code.
 
 ## What the façade does and does not hide
 

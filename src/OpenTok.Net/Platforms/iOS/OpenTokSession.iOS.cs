@@ -64,6 +64,49 @@ public sealed partial class OpenTokSession
     private partial void UnsubscribeNative(OpenTokSubscriber subscriber) =>
         _session!.Unsubscribe(subscriber.NativeSubscriber, out _);
 
+    private partial void SignalNative(string? type, string? data, OpenTokConnection? to)
+    {
+        _session!.SignalWithType(type, data, (OTConnection?)to?.NativeConnection, out var error);
+        ReportIfFailed(error);
+    }
+
+    private partial void ForceMuteAllNative(OpenTokStream[] except)
+    {
+        _session!.ForceMuteAll([.. except.Select(s => (OTStream)s.NativeStream)], out var error);
+        ReportIfFailed(error);
+    }
+
+    private partial void DisableForceMuteNative()
+    {
+        _session!.DisableForceMute(out var error);
+        ReportIfFailed(error);
+    }
+
+    private partial void ForceMuteStreamNative(OpenTokStream stream)
+    {
+        _session!.ForceMuteStream((OTStream)stream.NativeStream, out var error);
+        ReportIfFailed(error);
+    }
+
+    private partial void ForceDisconnectNative(OpenTokConnection connection)
+    {
+        _session!.ForceDisconnect((OTConnection)connection.NativeConnection, out var error);
+        ReportIfFailed(error);
+    }
+
+    private partial void SetEncryptionSecretNative(string secret)
+    {
+        _session!.SetEncryptionSecret(secret, out var error);
+        ReportIfFailed(error);
+    }
+
+    private partial OpenTokCapabilities? GetCapabilitiesNative() =>
+        _session?.Capabilities is { } c
+            ? new OpenTokCapabilities(c.CanPublish, c.CanSubscribe, c.CanForceMute, c.CanForceDisconnect)
+            : null;
+
+    private partial string? OwnConnectionIdNative() => _session?.Connection?.ConnectionId;
+
     private partial void DisposeNative()
     {
         _session?.Dispose();
@@ -96,6 +139,9 @@ public sealed partial class OpenTokSession
     internal static OpenTokStream Convert(OTStream stream) =>
         new(stream.StreamId, stream.Name, stream.HasAudio, stream.HasVideo, stream);
 
+    internal static OpenTokConnection Convert(OTConnection connection) =>
+        new(connection.ConnectionId, connection.Data, connection);
+
     /// <summary>
     /// Translates <c>OTSessionDelegate</c>'s callbacks onto the façade's events.
     /// </summary>
@@ -119,5 +165,35 @@ public sealed partial class OpenTokSession
 
         public override void StreamDestroyed(OTSession session, OTStream stream) =>
             owner.OnStreamDropped(Convert(stream));
+
+        // Everything below is @optional in the protocol. Overriding an optional method on a [Model]
+        // subclass is what registers it as implemented, so these are only delivered because they
+        // are here.
+
+        public override void ConnectionCreated(OTSession session, OTConnection connection) =>
+            owner.OnConnectionCreated(Convert(connection));
+
+        public override void ConnectionDestroyed(OTSession session, OTConnection connection) =>
+            owner.OnConnectionDestroyed(Convert(connection));
+
+        public override void ReceivedSignalType(
+            OTSession session,
+            string? type,
+            OTConnection? connection,
+            string? stringData) =>
+            owner.OnSignalReceived(type, stringData, connection is null ? null : Convert(connection));
+
+        public override void ArchiveStartedWithId(OTSession session, string archiveId, string? name) =>
+            owner.OnArchiveStarted(archiveId, name);
+
+        public override void ArchiveStoppedWithId(OTSession session, string archiveId) =>
+            owner.OnArchiveStopped(archiveId);
+
+        public override void DidBeginReconnecting(OTSession session) => owner.OnReconnecting();
+
+        public override void DidReconnect(OTSession session) => owner.OnReconnected();
+
+        public override void MuteForced(OTSession session, OTMuteForcedInfo muteForcedInfo) =>
+            owner.OnMuteForced(muteForcedInfo.Active);
     }
 }

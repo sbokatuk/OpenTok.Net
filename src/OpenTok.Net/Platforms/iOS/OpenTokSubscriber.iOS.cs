@@ -8,6 +8,8 @@ public sealed partial class OpenTokSubscriber : IOpenTokVideoSource
 {
     private OTSubscriber? _subscriber;
     private SubscriberDelegate? _delegate;
+    private AudioLevelDelegate? _audioLevelDelegate;
+    private CaptionsDelegate? _captionsDelegate;
 
     /// <summary>
     /// The SDK-created render view. Only meaningful once <see cref="OpenTokSubscriber.Connected"/>
@@ -28,11 +30,28 @@ public sealed partial class OpenTokSubscriber : IOpenTokVideoSource
         // stream.NativeStream is the OTStream this OpenTokStream was read from — see the remarks
         // on that property for why the native object is carried rather than re-resolved by id.
         _subscriber = new OTSubscriber((OTStream)stream.NativeStream, _delegate);
+
+        // Separate protocols, separate weakly-held properties, separate fields to keep them alive.
+        _audioLevelDelegate = new AudioLevelDelegate(this);
+        _subscriber.AudioLevelDelegate = _audioLevelDelegate;
+
+        _captionsDelegate = new CaptionsDelegate(this);
+        _subscriber.CaptionsDelegate = _captionsDelegate;
     }
 
     private partial void SetSubscribeToAudioNative(bool value) => _subscriber!.SubscribeToAudio = value;
 
     private partial void SetSubscribeToVideoNative(bool value) => _subscriber!.SubscribeToVideo = value;
+
+    private partial void SetSubscribeToCaptionsNative(bool value) => _subscriber!.SubscribeToCaptions = value;
+
+    private partial void SetCaptionsTranslationLanguageNative(string? value) =>
+        _subscriber!.CaptionsTranslationLanguage = value;
+
+    private partial string? GetCaptionsTranslationLanguageNative() =>
+        _subscriber?.CaptionsTranslationLanguage;
+
+    private partial void SetAudioVolumeNative(double value) => _subscriber!.AudioVolume = value;
 
     private partial void DisposeNative()
     {
@@ -41,6 +60,22 @@ public sealed partial class OpenTokSubscriber : IOpenTokVideoSource
         _subscriber?.Dispose();
         _subscriber = null;
         _delegate = null;
+        _audioLevelDelegate = null;
+        _captionsDelegate = null;
+    }
+
+    /// <summary>Forwards <c>OTSubscriberKitAudioLevelDelegate</c> onto the façade's event.</summary>
+    private sealed class AudioLevelDelegate(OpenTokSubscriber owner) : OTSubscriberKitAudioLevelDelegate
+    {
+        public override void AudioLevelUpdated(OTSubscriberKit subscriber, float audioLevel) =>
+            owner.OnAudioLevel(audioLevel);
+    }
+
+    /// <summary>Forwards <c>OTSubscriberKitCaptionsDelegate</c> onto the façade's event.</summary>
+    private sealed class CaptionsDelegate(OpenTokSubscriber owner) : OTSubscriberKitCaptionsDelegate
+    {
+        public override void Caption(OTSubscriberKit subscriber, string text, bool isFinal) =>
+            owner.OnCaption(text, isFinal);
     }
 
     private sealed class SubscriberDelegate(OpenTokSubscriber owner) : OTSubscriberKitDelegate
