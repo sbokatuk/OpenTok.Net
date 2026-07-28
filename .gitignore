@@ -1,0 +1,44 @@
+## .NET / MSBuild
+bin/
+obj/
+*.user
+*.userosscache
+*.sln.docstates
+
+## Downloaded native SDKs (brought in by build/loadnative.sh, never committed)
+Downloads/
+src/OpenTok.Net.iOS/lib/
+src/OpenTok.Net.Android/lib/
+
+## Packed NuGet output
+artifacts/*.nupkg
+artifacts/*.snupkg
+artifacts/.net9-pass/
+artifacts/.net10-pass/
+!artifacts/.gitkeep
+
+## Xcode / iOS build products that can leak in from local sample builds
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Android build products
+*.apk
+*.aab
+*.jks
+*.keystore
+
+## Test results
+*.trx
+TestResults/
+
+## Rider / VS / VS Code
+.idea/
+.vs/
+*.suo
+.vscode/*
+!.vscode/extensions.json
+
+## OS cruft
+.DS_Store
+Thumbs.db

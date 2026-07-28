@@ -1,0 +1,26 @@
+# The package set, and the single source of truth for it.
+#
+# build/BuildNugets.sh packs in this order, the CI workflows and the e2e scripts read it, and
+# tests/OpenTok.Net.UnitTests asserts it stays consistent with what is actually under src/. Adding a
+# package means adding a row here and a project under src/ — nothing else keeps a second copy of the
+# list.
+#
+# Rows are in dependency order, and BuildNugets.sh relies on it: OpenTok.Net.Maui carries a
+# PackageReference on OpenTok.Net and restores it from the local-artifacts feed (see NuGet.config),
+# so the core package has to be packed *and merged* before the MAUI one is packed at all.
+#
+# Neither row is a native binding. OpenTok.Net.iOS and OpenTok.Net.Android — the packages that
+# actually wrap OpenTok.xcframework and opentok-android-sdk.aar — are built and published from
+# their own repositories and consumed here as pinned NuGet dependencies (see
+# OpenTokIosPackageVersion / OpenTokAndroidPackageVersion in Directory.Build.props), not packed by
+# this script.
+#
+# Columns
+#   id      the NuGet package id, which is also the directory under src/ and the .csproj name
+#   heads   which target-framework family the package ships:
+#             mobile - both android and ios heads
+#   deps    other ids in this repository it depends on, comma separated, or -
+#
+# id	heads	deps
+OpenTok.Net	mobile	-
+OpenTok.Net.Maui	mobile	OpenTok.Net
