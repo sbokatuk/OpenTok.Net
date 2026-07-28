@@ -96,6 +96,7 @@ for package in $PACKAGES; do
     dotnet pack "$project" \
         -c Release \
         -p:OpenTokSdkBand="$PASS1_BAND" \
+        -p:OpenTokWindowsOnly=true \
         $VERSION_ARG \
         -o "$WIN1_DIR"
 
@@ -103,6 +104,7 @@ for package in $PACKAGES; do
     (cd "$SDK10_DIR" && dotnet pack "$project" \
         -c Release \
         -p:OpenTokSdkBand="$PASS2_BAND" \
+        -p:OpenTokWindowsOnly=true \
         $VERSION_ARG \
         -o "$WIN2_DIR")
 

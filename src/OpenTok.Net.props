@@ -26,23 +26,29 @@
       carry fails to restore, and does so only for whoever picks that framework.
     -->
     <OpenTokSdkBand Condition=" '$(OpenTokSdkBand)' == '' ">net9</OpenTokSdkBand>
-    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net9' ">net8.0-android34.0;net9.0-android35.0;net8.0-ios18.0;net9.0-ios18.0</TargetFrameworks>
-    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' ">net10.0-android36.0;net10.0-ios26.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' != 'true' AND '$(OpenTokSdkBand)' == 'net9' ">net8.0-android34.0;net9.0-android35.0;net8.0-ios18.0;net9.0-ios18.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' != 'true' AND '$(OpenTokSdkBand)' == 'net10' ">net10.0-android36.0;net10.0-ios26.0</TargetFrameworks>
 
     <!--
-      Windows, appended to whichever band is being built, and only on Windows.
+      Windows, and it *replaces* the list above rather than being appended to it.
 
-      Unlike ios and android, a -windows target framework needs no workload — just the Windows SDK
-      reference pack, which every band carries — so it does not have to be split across the two
-      passes and net8/net9/net10 can each go in their own band's list.
+      That is the whole point, and appending was a mistake worth naming: no machine can build all
+      three heads, so a target framework list containing all of them cannot be built anywhere. A
+      Windows runner has no Xcode, so the ios heads are impossible there in principle rather than
+      merely unconfigured — and the android heads failed with NETSDK1147 for a workload that
+      genuinely has no reason to be installed on a machine packing Windows assets.
 
-      Conditioned on the host OS because a -windows target framework cannot be built anywhere else,
-      and the packing machine for this repository is a Mac (both other platform heads need Xcode).
-      A package built there simply has no Windows assets; that is a real gap, and
-      build/BuildNugets.sh is where it has to be closed, not here.
+      So the two are mutually exclusive by construction: build/AddWindowsAssets.sh passes
+      OpenTokWindowsOnly=true and gets a Windows-only pack, everything else gets the mobile heads,
+      and build/merge-packages.py joins the two into one package. Selected by an explicit property
+      rather than by IsOSPlatform, because "am I on Windows" is not the question — a Windows machine
+      is perfectly able to build the android heads, it just must not be asked to while doing this.
+
+      Unlike ios and android, a -windows target framework needs no workload beyond the Windows SDK
+      reference pack, which every band carries, so net8/net9/net10 sit in their own band's list.
     -->
-    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net9' AND $([MSBuild]::IsOSPlatform('Windows')) ">$(TargetFrameworks);net8.0-windows$(OpenTokWindowsSdkVersion);net9.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
-    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' AND $([MSBuild]::IsOSPlatform('Windows')) ">$(TargetFrameworks);net10.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' == 'true' AND '$(OpenTokSdkBand)' == 'net9' ">net8.0-windows$(OpenTokWindowsSdkVersion);net9.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' == 'true' AND '$(OpenTokSdkBand)' == 'net10' ">net10.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
 
     <!--
       net8.0-* is past end of support, which the SDK reports as an error. It ships deliberately:

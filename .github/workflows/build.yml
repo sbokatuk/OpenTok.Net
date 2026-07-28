@@ -451,7 +451,11 @@ jobs:
             runs-on: windows-latest
             target-framework: net9.0-windows10.0.19041.0
             workload: maui-windows
-            extra-args: -p:RuntimeIdentifier=win-x64 -p:SelfContained=false
+            # OpenTokWindowsOnly, so the sample declares the Windows head alone. Without it the
+            # declared list still names an ios head this runner cannot build in principle, which
+            # breaks MauiVersion resolution for the head it can — the NU1015 trap the sample's own
+            # .csproj documents.
+            extra-args: -p:OpenTokWindowsOnly=true -p:RuntimeIdentifier=win-x64 -p:SelfContained=false
     steps:
       - uses: actions/checkout@v4
 

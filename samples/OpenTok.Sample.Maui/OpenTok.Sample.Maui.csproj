@@ -20,18 +20,23 @@
   -->
   <PropertyGroup>
     <OpenTokSdkBand Condition=" '$(OpenTokSdkBand)' == '' ">net9</OpenTokSdkBand>
-    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net9' ">net9.0-android35.0;net9.0-ios18.0</TargetFrameworks>
-    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' ">net10.0-android36.0;net10.0-ios26.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' != 'true' AND '$(OpenTokSdkBand)' == 'net9' ">net9.0-android35.0;net9.0-ios18.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' != 'true' AND '$(OpenTokSdkBand)' == 'net10' ">net10.0-android36.0;net10.0-ios26.0</TargetFrameworks>
 
     <!--
-      Windows, appended only when building on Windows — a -windows head cannot be built anywhere
-      else, and the two other heads need a Mac. Same conditioning as src/OpenTok.Net.props.
+      Windows *replaces* the list rather than extending it, for the reason src/OpenTok.Net.props
+      gives at length: no machine can build all three heads, so a list naming all of them builds
+      nowhere. OpenTokWindowsOnly=true selects the Windows head on its own.
 
-      This is the sample's real job for Windows: proving MainPage.xaml.cs, which contains no
+      It matters more here than in the library, because of the MauiVersion trap already documented
+      below: a declared list containing an ios head on a Windows runner does not merely fail to
+      build it, it breaks workload resolution for the head that *can* build.
+
+      This is the sample's real job for Windows — proving MainPage.xaml.cs, which contains no
       per-platform code at all, compiles and runs on a third platform without gaining any.
     -->
-    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net9' AND $([MSBuild]::IsOSPlatform('Windows')) ">$(TargetFrameworks);net9.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
-    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' AND $([MSBuild]::IsOSPlatform('Windows')) ">$(TargetFrameworks);net10.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' == 'true' AND '$(OpenTokSdkBand)' == 'net9' ">net9.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' == 'true' AND '$(OpenTokSdkBand)' == 'net10' ">net10.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
 
     <OutputType>Exe</OutputType>
     <RootNamespace>OpenTok.Sample.Maui</RootNamespace>
