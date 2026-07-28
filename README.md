@@ -6,8 +6,8 @@
 [![OpenTok SDK 2.34.1](https://img.shields.io/badge/OpenTok%20SDK-2.34.1-099DFD)](https://developer.vonage.com/en/video/client-sdk/overview)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
 
-One `Session`/`Publisher`/`Subscriber` API over Vonage's (formerly TokBox's) native OpenTok iOS and
-Android SDKs, so a .NET or .NET MAUI app writes its calling code once.
+One `Session`/`Publisher`/`Subscriber` API over Vonage's (formerly TokBox's) OpenTok iOS, Android
+and Windows SDKs, so a .NET or .NET MAUI app writes its calling code once.
 
 ```bash
 dotnet add package OpenTok.Net.Maui
@@ -27,8 +27,8 @@ session.StreamReceived += (_, e) =>
 session.Connect(token);
 ```
 
-No `#if IOS`, no `#if ANDROID`, no delegate subclass, no Java listener, no `JavaCast`, and no
-hand-written video-view handler. `samples/OpenTok.Sample.Maui` is that code as a running app —
+No `#if IOS`, no `#if ANDROID`, no `#if WINDOWS`, no delegate subclass, no Java listener, no
+`JavaCast`, and no hand-written video-view handler. `samples/OpenTok.Sample.Maui` is that code as a running app —
 compare it with the per-platform samples in the two binding repositories, which are the same flow
 written twice.
 
@@ -38,10 +38,35 @@ written twice.
 
 | Package | Depends on | Use it when |
 | --- | --- | --- |
-| `OpenTok.Net` | [`OpenTok.Net.iOS`](https://github.com/sbokatuk/OpenTok.Net.iOS) / [`OpenTok.Net.Android`](https://github.com/sbokatuk/OpenTok.Net.Android), per target framework | Always — `OpenTokSession`, `OpenTokPublisher`, `OpenTokSubscriber`. |
+| `OpenTok.Net` | [`OpenTok.Net.iOS`](https://github.com/sbokatuk/OpenTok.Net.iOS) / [`OpenTok.Net.Android`](https://github.com/sbokatuk/OpenTok.Net.Android) / [`OpenTok.Net.Win`](https://github.com/sbokatuk/OpenTok.Net.Win), per target framework | Always — `OpenTokSession`, `OpenTokPublisher`, `OpenTokSubscriber`. |
 | `OpenTok.Net.Maui` | `OpenTok.Net` + `Microsoft.Maui.Controls` | You are building MAUI and want `OpenTokVideoView` rather than writing a handler. |
 
-Both carry `net8.0`, `net9.0` and `net10.0` for iOS and Android — six target frameworks each.
+Both carry `net8.0`, `net9.0` and `net10.0` for iOS, Android and Windows — nine target frameworks
+each.
+
+### Windows
+
+Windows arrives differently from the other two. Vonage's `OpenTok.Client` is already managed .NET,
+so there is no binding to generate — but it ships video renderers only for WPF and Windows Forms,
+and none at all on the `netstandard2.0` asset a modern .NET app resolves. .NET MAUI on Windows is
+WinUI 3, so without help a MAUI app can connect, publish and subscribe and have nowhere to put the
+picture. [`OpenTok.Net.Win`](https://github.com/sbokatuk/OpenTok.Net.Win) supplies the WinUI
+renderer; this façade uses it, and you do not reference it directly.
+
+Two things about Windows that the other platforms do not ask of you:
+
+* **x64 only.** `OpenTok.Client`'s native payload has no arm64 build. `OpenTok.Net.Win` fails the
+  build with **OTW0001** rather than letting that become a `BadImageFormatException` after launch.
+  Windows on ARM runs the x64 build under emulation.
+* **Create the first OpenTok object on the UI thread.** The Windows SDK has an explicit context
+  object with no iOS or Android equivalent, and the façade binds it to that thread's dispatcher
+  queue so events arrive somewhere they can touch the UI. It is what `OpenTokSession` already asks
+  for; on Windows it is enforced rather than advised.
+
+Some of the shared API has no Windows equivalent and is a documented no-op there rather than an
+exception — camera position, torch and zoom (desktop webcams have none), the end-to-end encryption
+secret, `Pause()`/`Resume()`, and all of `OpenTokAudioSession` (Windows has no CallKit analogue). A
+façade whose common API throws on one platform would not be a façade.
 
 For background blur, background replacement or noise suppression, add the platform transformers
 package too — `OpenTok.Net.Transformers.iOS` and/or `OpenTok.Net.Transformers.Android`. Neither is
@@ -76,7 +101,7 @@ per-platform code.
 
 | Sample | Platforms | Shows |
 | --- | --- | --- |
-| `OpenTok.Sample.Maui` | both | Everything in the table above, one page, no per-platform code |
+| `OpenTok.Sample.Maui` | iOS, Android, Windows | Everything in the table above, one page, no per-platform code |
 | `OpenTok.Sample.CallKit.iOS` | iOS | `CXProvider`, answering from the system call UI, audio handed to CallKit |
 | `OpenTok.Sample.Telecom.Android` | Android | `ConnectionService` + `PhoneAccount`, and a camera/microphone foreground service |
 

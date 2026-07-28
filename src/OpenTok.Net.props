@@ -30,6 +30,21 @@
     <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' ">net10.0-android36.0;net10.0-ios26.0</TargetFrameworks>
 
     <!--
+      Windows, appended to whichever band is being built, and only on Windows.
+
+      Unlike ios and android, a -windows target framework needs no workload — just the Windows SDK
+      reference pack, which every band carries — so it does not have to be split across the two
+      passes and net8/net9/net10 can each go in their own band's list.
+
+      Conditioned on the host OS because a -windows target framework cannot be built anywhere else,
+      and the packing machine for this repository is a Mac (both other platform heads need Xcode).
+      A package built there simply has no Windows assets; that is a real gap, and
+      build/BuildNugets.sh is where it has to be closed, not here.
+    -->
+    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net9' AND $([MSBuild]::IsOSPlatform('Windows')) ">$(TargetFrameworks);net8.0-windows$(OpenTokWindowsSdkVersion);net9.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' AND $([MSBuild]::IsOSPlatform('Windows')) ">$(TargetFrameworks);net10.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
+
+    <!--
       net8.0-* is past end of support, which the SDK reports as an error. It ships deliberately:
       both platform packages carry it, and a large share of MAUI apps are still on .NET 8.
     -->
@@ -60,6 +75,18 @@
   </PropertyGroup>
 
   <!--
+    Windows 10 build 17763 is .NET MAUI's own floor, and it is deliberately lower than the
+    10.0.19041 the target framework is *built* against. That split is the normal Windows pattern:
+    TargetPlatformVersion says which APIs may be referenced, SupportedOSPlatformVersion says where
+    the result will run. WinUI needs 19041 to build and MAUI supports 17763 at runtime, so a floor
+    of 19041 here would refuse to install on machines MAUI itself supports.
+  -->
+  <PropertyGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' ">
+    <SupportedOSPlatformVersion>$(OpenTokSupportedWindowsVersion)</SupportedOSPlatformVersion>
+    <UseWinUI>true</UseWinUI>
+  </PropertyGroup>
+
+  <!--
     Per-platform sources, selected by folder rather than by #if.
 
     The default globs would compile every Platforms/ folder into every target framework, so they
@@ -78,6 +105,10 @@
 
   <ItemGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' ">
     <Compile Include="Platforms/Android/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' ">
+    <Compile Include="Platforms/Windows/**/*.cs" />
   </ItemGroup>
 
   <!-- Packaging -->

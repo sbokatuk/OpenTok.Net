@@ -33,4 +33,17 @@
     <PackageReference Include="OpenTok.Net.Android" Version="[$(OpenTokAndroidPackageVersion)]" />
   </ItemGroup>
 
+  <!--
+    Windows takes two packages where the other platforms take one: Vonage's own OpenTok.Client,
+    which is already managed .NET and needs no binding, and OpenTok.Net.Win, which supplies the
+    WinUI 3 renderer OpenTok.Client does not have. OpenTok.Net.Win depends on OpenTok.Client, so
+    naming it alone would be enough — it is listed explicitly because this façade calls
+    OpenTok.Session and OpenTok.Publisher directly, and a package it compiles against belongs in its
+    own reference list rather than arriving transitively.
+  -->
+  <ItemGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' ">
+    <PackageReference Include="OpenTok.Net.Win" Version="[$(OpenTokWinPackageVersion)]" />
+    <PackageReference Include="OpenTok.Client" Version="[$(OpenTokClientPackageVersion)]" />
+  </ItemGroup>
+
 </Project>

@@ -62,6 +62,32 @@
     <OpenTokSupportedIosVersion>15.0</OpenTokSupportedIosVersion>
     <OpenTokSupportedAndroidVersion>24</OpenTokSupportedAndroidVersion>
 
+    <!--
+      Windows, where two different numbers are needed and conflating them is the usual mistake.
+
+      OpenTokWindowsSdkVersion (10.0.19041.0) is what the target framework is *built* against — the
+      Windows App SDK's floor for WinUI 3, and therefore not negotiable.
+
+      OpenTokSupportedWindowsVersion (10.0.17763.0) is where the result will *run*, and is .NET
+      MAUI's own floor. Setting the runtime floor to 19041 as well would refuse to install on
+      machines MAUI itself supports, for no gain.
+    -->
+    <OpenTokWindowsSdkVersion>10.0.19041.0</OpenTokWindowsSdkVersion>
+    <OpenTokSupportedWindowsVersion>10.0.17763.0</OpenTokSupportedWindowsVersion>
+
+    <!--
+      The Windows head's own package. Exact, like the other two — see the comment on those, and note
+      the extra reason here: OpenTok.Net.Win carries the renderer that reads VideoFrame planes
+      directly, so a mismatched pair is not a version-skew inconvenience but a memory-safety one.
+    -->
+    <OpenTokWinPackageVersion>2.34.1.1</OpenTokWinPackageVersion>
+
+    <!--
+      Vonage's own Windows SDK. Arrives transitively through OpenTok.Net.Win anyway; pinned here
+      because this façade compiles against OpenTok.Session and OpenTok.Publisher directly.
+    -->
+    <OpenTokClientPackageVersion>2.34.1</OpenTokClientPackageVersion>
+
     <Authors>s.bokatuk</Authors>
     <Company>s.bokatuk</Company>
     <Copyright>Copyright © s.bokatuk</Copyright>

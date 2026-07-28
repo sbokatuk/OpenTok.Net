@@ -23,6 +23,16 @@
     <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net9' ">net9.0-android35.0;net9.0-ios18.0</TargetFrameworks>
     <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' ">net10.0-android36.0;net10.0-ios26.0</TargetFrameworks>
 
+    <!--
+      Windows, appended only when building on Windows — a -windows head cannot be built anywhere
+      else, and the two other heads need a Mac. Same conditioning as src/OpenTok.Net.props.
+
+      This is the sample's real job for Windows: proving MainPage.xaml.cs, which contains no
+      per-platform code at all, compiles and runs on a third platform without gaining any.
+    -->
+    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net9' AND $([MSBuild]::IsOSPlatform('Windows')) ">$(TargetFrameworks);net9.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' AND $([MSBuild]::IsOSPlatform('Windows')) ">$(TargetFrameworks);net10.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
+
     <OutputType>Exe</OutputType>
     <RootNamespace>OpenTok.Sample.Maui</RootNamespace>
     <UseMaui>true</UseMaui>
@@ -47,6 +57,22 @@
 
   <PropertyGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' ">
     <SupportedOSPlatformVersion>$(OpenTokSupportedAndroidVersion)</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' ">
+    <SupportedOSPlatformVersion>$(OpenTokSupportedWindowsVersion)</SupportedOSPlatformVersion>
+    <TargetPlatformMinVersion>$(OpenTokSupportedWindowsVersion)</TargetPlatformMinVersion>
+
+    <!--
+      x64, and this is not a preference. OpenTok.Client's native payload — opentok.dll and its
+      capturers — has no arm64 build, so an arm64 app fails on its first call into the SDK with
+      BadImageFormatException. OpenTok.Net.Win ships a targets file that turns that into a build
+      error (OTW0001); setting the RID here is what keeps this sample on the right side of it.
+      Windows on ARM runs the x64 build under emulation.
+    -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <WindowsPackageType>None</WindowsPackageType>
   </PropertyGroup>
 
   <ItemGroup>

@@ -271,6 +271,72 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # Adds the -windows target frameworks to the packages the macOS pack job produced.
+  #
+  # OpenTok.Net has three platform heads and no runner can build all of them: the ios head needs
+  # Xcode, the windows head needs the Windows SDK reference packs and WinUI. So
+  # src/OpenTok.Net.props appends the -windows target frameworks only when building on Windows,
+  # which makes the macOS-packed package correct, complete for iOS and Android, and silently devoid
+  # of Windows assets.
+  #
+  # This closes that the same way the net9/net10 band split is closed — pack again where it can be
+  # packed, then merge with build/merge-packages.py. Uploaded under a second artifact name rather
+  # than replacing the first, because an artifact cannot be overwritten and because the two are
+  # genuinely different: the release job publishes this one, while the iOS and Android verification
+  # jobs are unaffected by whether it succeeded.
+  add-windows-assets:
+    name: add Windows assets to the packages
+    timeout-minutes: 30
+    needs: pack
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.x
+
+      - name: Install the MAUI workload
+        run: dotnet workload install maui-windows
+
+      - name: Download packages
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      - name: Pack the Windows heads and merge them in
+        shell: bash
+        run: ./build/AddWindowsAssets.sh "${{ inputs.version }}"
+
+      # Asserted rather than assumed: the script merges whatever the pack produced, and a pack that
+      # quietly emitted no Windows target framework — because the workload was missing, or because
+      # the IsOSPlatform condition in OpenTok.Net.props stopped matching — would still exit 0 and
+      # upload the unchanged package.
+      - name: Check the Windows assets are actually in there
+        shell: bash
+        run: |
+          missing=0
+          for id in OpenTok.Net OpenTok.Net.Maui; do
+            pkg="$(ls artifacts/${id}.*.nupkg | grep -v symbols | head -1)"
+            if unzip -l "${pkg}" | grep -q 'lib/net9.0-windows'; then
+              echo "  ok      ${id}"
+            else
+              echo "::error::${pkg} has no lib/net9.0-windows*/ assets after the merge"
+              missing=1
+            fi
+          done
+          exit "${missing}"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages-with-windows
+          path: artifacts
+
   sample:
     name: build sample app
     timeout-minutes: 45
@@ -354,7 +420,10 @@ jobs:
   verify-release:
     name: Release build (${{ matrix.platform }})
     timeout-minutes: 45
-    needs: pack
+    # add-windows-assets as well as pack: only the windows leg needs it, but a matrix has one set
+    # of dependencies. The cost is that the iOS and Android legs wait for a Windows pack they do not
+    # use; the alternative is a second nearly identical job.
+    needs: [pack, add-windows-assets]
     if: ${{ inputs.verify-release }}
     runs-on: ${{ matrix.runs-on }}
     strategy:
@@ -374,6 +443,15 @@ jobs:
             target-framework: net9.0-android35.0
             workload: maui-android
             extra-args: -p:RuntimeIdentifier=android-arm64
+          # x64, not the runner's native architecture: OpenTok.Client's native payload has no arm64
+          # build, and OpenTok.Net.Win's own targets file fails the build rather than let that
+          # surface at runtime. Also the only leg that needs the Windows assets to have been merged
+          # into the package — see the add-windows-assets job.
+          - platform: windows
+            runs-on: windows-latest
+            target-framework: net9.0-windows10.0.19041.0
+            workload: maui-windows
+            extra-args: -p:RuntimeIdentifier=win-x64 -p:SelfContained=false
     steps:
       - uses: actions/checkout@v4
 
@@ -404,10 +482,12 @@ jobs:
         with:
           packages: 'platforms;android-35'
 
+      # The Windows leg needs the package that has Windows assets in it, which is a different
+      # artifact — see the add-windows-assets job for why there are two.
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
-          name: nuget-packages
+          name: ${{ matrix.platform == 'windows' && 'nuget-packages-with-windows' || 'nuget-packages' }}
           path: artifacts
 
       # net9, not net10 as the Debug sample job uses: this needs no scratch global.json, and the
@@ -449,6 +529,9 @@ jobs:
             android)
               produced="$(find samples/OpenTok.Sample.Maui/bin/Release -name '*.apk' -print -quit)"
               ;;
+            windows)
+              produced="$(find samples/OpenTok.Sample.Maui/bin/Release -name 'OpenTok.Sample.Maui.exe' -print -quit)"
+              ;;
           esac
 
           if [ -z "${produced}" ]; then
@@ -457,3 +540,18 @@ jobs:
           fi
 
           echo "produced ${produced}"
+
+      # The renderer is useless if Vonage's native payload does not travel with it, and unlike the
+      # other two platforms nothing about the build fails when it does not — opentok.dll is copied
+      # by a plain Content glob in OpenTok.Client's own targets, so a packaging change drops it
+      # silently and the app dies on the first call into the SDK.
+      - name: Check the native payload reached the output
+        if: matrix.platform == 'windows'
+        shell: bash
+        run: |
+          found="$(find samples/OpenTok.Sample.Maui/bin/Release -name 'opentok.dll' -print -quit)"
+          if [ -z "${found}" ]; then
+            echo "::error::opentok.dll is missing from the Windows build output"
+            exit 1
+          fi
+          echo "ok  ${found}"
