@@ -308,28 +308,17 @@ jobs:
           name: nuget-packages
           path: artifacts
 
+      # The script asserts the result itself: require_windows_frameworks reads the lib/<tfm>/ folders
+      # out of every merged package and fails the step if any of them carries no Windows assets, so
+      # a pack that quietly emitted no -windows target framework cannot reach the upload below.
+      # Repeating that here as a shell one-liner was worse than nothing: with `-o pipefail`, which
+      # this shell sets, `unzip -l pkg | grep -q ...` reports failure whenever grep matches early
+      # enough to exit before unzip has finished writing, because unzip then dies of SIGPIPE and its
+      # 141 becomes the pipeline's status. That is a coin toss on the package's entry order, and it
+      # came up tails on a package that did have its Windows assets.
       - name: Pack the Windows heads and merge them in
         shell: bash
         run: ./build/AddWindowsAssets.sh "${{ inputs.version }}"
-
-      # Asserted rather than assumed: the script merges whatever the pack produced, and a pack that
-      # quietly emitted no Windows target framework — because the workload was missing, or because
-      # the IsOSPlatform condition in OpenTok.Net.props stopped matching — would still exit 0 and
-      # upload the unchanged package.
-      - name: Check the Windows assets are actually in there
-        shell: bash
-        run: |
-          missing=0
-          for id in OpenTok.Net OpenTok.Net.Maui; do
-            pkg="$(ls artifacts/${id}.*.nupkg | grep -v symbols | head -1)"
-            if unzip -l "${pkg}" | grep -q 'lib/net9.0-windows'; then
-              echo "  ok      ${id}"
-            else
-              echo "::error::${pkg} has no lib/net9.0-windows*/ assets after the merge"
-              missing=1
-            fi
-          done
-          exit "${missing}"
 
       - name: Upload packages
         uses: actions/upload-artifact@v4
