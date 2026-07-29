@@ -513,7 +513,12 @@ jobs:
       #
       # Unlike the Debug sample job, this cannot be fixed by installing both workloads: that job
       # runs entirely on macOS, where both exist. This one deliberately builds Android on Linux.
+      # shell: bash on this step and the next, because the windows leg would otherwise get pwsh —
+      # which reads the line continuations below as an operator and fails to parse the command
+      # before ever running it. The two legs on macOS and Linux already had bash by default, which
+      # is why this only ever surfaced here.
       - name: Build the sample in Release
+        shell: bash
         run: |
           dotnet build samples/OpenTok.Sample.Maui/OpenTok.Sample.Maui.csproj \
             --configuration Release \
@@ -525,6 +530,7 @@ jobs:
       # .app is assembled, and on Android r8 and the packaging step run before the APK is. A failure
       # in any of them never gets far enough to produce one.
       - name: Check the app was produced
+        shell: bash
         run: |
           case "${{ matrix.platform }}" in
             ios)
