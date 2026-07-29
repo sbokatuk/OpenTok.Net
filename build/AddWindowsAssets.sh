@@ -74,10 +74,11 @@ fi
 
 WIN1_DIR="$OUTPUT/.win9-pass"
 WIN2_DIR="$OUTPUT/.win10-pass"
+PRIMARY_DIR="$OUTPUT/.primary"
 MERGED_DIR="$OUTPUT/.merged"
 
 SDK10_DIR="$(mktemp -d)"
-trap 'rm -rf "$SDK10_DIR" "$WIN1_DIR" "$WIN2_DIR" "$MERGED_DIR"' EXIT
+trap 'rm -rf "$SDK10_DIR" "$WIN1_DIR" "$WIN2_DIR" "$PRIMARY_DIR" "$MERGED_DIR"' EXIT
 cat > "$SDK10_DIR/global.json" <<EOF
 { "sdk": { "version": "$PASS2_SDK", "rollForward": "latestFeature" } }
 EOF
@@ -90,7 +91,7 @@ for package in $PACKAGES; do
         exit 1
     fi
 
-    rm -rf "$WIN1_DIR" "$WIN2_DIR" "$MERGED_DIR"
+    rm -rf "$WIN1_DIR" "$WIN2_DIR" "$PRIMARY_DIR" "$MERGED_DIR"
 
     echo "==> packing $package windows heads ($PASS1_BAND band)"
     dotnet pack "$project" \
@@ -108,13 +109,29 @@ for package in $PACKAGES; do
         $VERSION_ARG \
         -o "$WIN2_DIR")
 
+    # merge-packages.py merges every package it finds in the primary directory, so the primary
+    # here cannot be artifacts/ itself: that holds all the packages, while the Windows passes hold
+    # only the one just packed, and every other id would be reported as having no counterpart.
+    # Stage just this package's files — the pass directory names them, so no version is needed.
+    echo "==> merging windows target frameworks into $package"
+    mkdir -p "$PRIMARY_DIR"
+    for asset in "$WIN1_DIR"/*.nupkg "$WIN1_DIR"/*.snupkg; do
+        [ -f "$asset" ] || continue
+        name=$(basename "$asset")
+        if [ ! -f "$OUTPUT/$name" ]; then
+            echo "error: $name is not in $OUTPUT — run build/BuildNugets.sh on macOS first and" >&2
+            echo "       bring its artifacts/ here, at the same version." >&2
+            exit 1
+        fi
+        cp "$OUTPUT/$name" "$PRIMARY_DIR/$name"
+    done
+
     # Merged in two steps because merge-packages.py takes one additional directory at a time, and
     # into a scratch directory because it will not read and write the same place.
-    echo "==> merging windows target frameworks into $package"
-    python3 "$ROOT/build/merge-packages.py" "$OUTPUT" "$WIN1_DIR" "$MERGED_DIR"
+    python3 "$ROOT/build/merge-packages.py" "$PRIMARY_DIR" "$WIN1_DIR" "$MERGED_DIR"
     python3 "$ROOT/build/merge-packages.py" "$MERGED_DIR" "$WIN2_DIR" "$OUTPUT"
 done
 
-rm -rf "$WIN1_DIR" "$WIN2_DIR" "$MERGED_DIR"
+rm -rf "$WIN1_DIR" "$WIN2_DIR" "$PRIMARY_DIR" "$MERGED_DIR"
 
 echo "==> windows assets added to $OUTPUT"
