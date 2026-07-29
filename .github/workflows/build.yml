@@ -9,6 +9,16 @@ name: build
 on:
   workflow_call:
     inputs:
+      verify:
+        description: >
+          Whether to run the verification jobs — package validation, the sample builds, the
+          Release link checks and the e2e suites. Pull requests leave it at true, and are the only
+          place any of this runs. Releases pass false: the tagged commit was already verified on
+          its pull request, so a tag packs and publishes and nothing more. The gate is the same
+          input, with the same name and the same meaning, in every repository.
+        required: false
+        default: true
+        type: boolean
       version:
         description: NuGet version to stamp on every package.
         required: true
@@ -33,25 +43,6 @@ on:
         required: false
         default: 35
         type: number
-      build-sample:
-        description: >
-          Whether to compile the MAUI sample against the packed packages. Defaults to true, because
-          it is a verification step and a new caller should get it. Releases turn it off: by then
-          the same commit has already been through it on the pull request, and it would otherwise
-          put a MAUI workload install between the packages being built and being published.
-        required: false
-        default: true
-        type: boolean
-      verify-release:
-        description: >
-          Whether to run the Release-configuration jobs — the ones that prove the façade's types
-          survive the managed linker and that the platform bindings underneath still link for a
-          real device. Defaults to true, so a pull request gets them; releases turn them off,
-          because the tagged commit has already been through them on its own PR.
-        required: false
-        default: true
-        type: boolean
-
 env:
   DOTNET_NOLOGO: 'true'
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
@@ -116,6 +107,7 @@ jobs:
       # against src/, the .sln, the version pins) and need nothing built; the package tests read the
       # .nupkg files just produced. Both run on a plain host with no workload.
       - name: Validate packages
+        if: ${{ inputs.verify }}
         env:
           OPENTOK_PACKAGE_VERSION: ${{ inputs.version }}
         run: |
@@ -133,7 +125,7 @@ jobs:
           retention-days: 7
 
       - name: Upload test results
-        if: always()
+        if: ${{ inputs.verify && (always()) }}
         uses: actions/upload-artifact@v4
         with:
           name: package-test-results
@@ -143,6 +135,7 @@ jobs:
 
   e2e-ios:
     name: simulator checks (${{ matrix.target-framework }})
+    if: ${{ inputs.verify }}
     timeout-minutes: 45
     needs: pack
     runs-on: macos-15
@@ -195,6 +188,7 @@ jobs:
 
   e2e-android:
     name: emulator checks (${{ matrix.target-framework }})
+    if: ${{ inputs.verify }}
     timeout-minutes: 60
     needs: pack
     strategy:
@@ -330,7 +324,7 @@ jobs:
     name: build sample app
     timeout-minutes: 45
     needs: pack
-    if: ${{ inputs.build-sample }}
+    if: ${{ inputs.verify }}
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -413,7 +407,7 @@ jobs:
     # of dependencies. The cost is that the iOS and Android legs wait for a Windows pack they do not
     # use; the alternative is a second nearly identical job.
     needs: [pack, add-windows-assets]
-    if: ${{ inputs.verify-release }}
+    if: ${{ inputs.verify }}
     runs-on: ${{ matrix.runs-on }}
     strategy:
       # fail-fast off: one platform failing and the other passing is a very different diagnosis
