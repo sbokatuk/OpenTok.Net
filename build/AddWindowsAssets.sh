@@ -50,6 +50,39 @@ esac
 
 PACKAGES=$(grep -v '^#' packages.tsv | grep -v '^[[:space:]]*$' | cut -f1)
 
+# The lib/<tfm>/ folders a package carries for Windows, one per line, or nothing at all.
+#
+# Read from the zip rather than from the merge's own report: merge-packages.py prints the target
+# frameworks it *added*, and a package can advertise a target framework in its nuspec while
+# carrying no assets for it — which restores, and then fails to compile at whoever picked it.
+windows_frameworks() {
+    python3 - "$1" <<'PY'
+import sys
+import zipfile
+
+with zipfile.ZipFile(sys.argv[1]) as package:
+    frameworks = {
+        name.split("/")[1]
+        for name in package.namelist()
+        if name.startswith("lib/") and "-windows" in name.split("/")[1] and name.count("/") > 1
+    }
+
+print("\n".join(sorted(frameworks)))
+PY
+}
+
+# Fails unless the package carries Windows assets, naming it and listing what it does carry.
+require_windows_frameworks() {
+    frameworks=$(windows_frameworks "$1" | tr '\n' ' ')
+
+    if [ -z "$(echo "$frameworks" | tr -d ' ')" ]; then
+        echo "error: $(basename "$1") carries no lib/<tfm>/ assets for Windows." >&2
+        exit 1
+    fi
+
+    echo "    $(basename "$1"): $frameworks"
+}
+
 if [ -z "$PACKAGES" ]; then
     echo "error: no packages found in build/packages.tsv" >&2
     exit 1
@@ -83,6 +116,9 @@ cat > "$SDK10_DIR/global.json" <<EOF
 { "sdk": { "version": "$PASS2_SDK", "rollForward": "latestFeature" } }
 EOF
 
+# Every package this run merged into, by file name, to re-check once the loop is done.
+MERGED_PACKAGES=""
+
 for package in $PACKAGES; do
     project="$ROOT/src/$package/$package.csproj"
 
@@ -115,6 +151,7 @@ for package in $PACKAGES; do
     # Stage just this package's files — the pass directory names them, so no version is needed.
     echo "==> merging windows target frameworks into $package"
     mkdir -p "$PRIMARY_DIR"
+    nupkg=""
     for asset in "$WIN1_DIR"/*.nupkg "$WIN1_DIR"/*.snupkg; do
         [ -f "$asset" ] || continue
         name=$(basename "$asset")
@@ -124,14 +161,27 @@ for package in $PACKAGES; do
             exit 1
         fi
         cp "$OUTPUT/$name" "$PRIMARY_DIR/$name"
+        case "$name" in *.nupkg) nupkg="$name" ;; esac
     done
 
     # Merged in two steps because merge-packages.py takes one additional directory at a time, and
     # into a scratch directory because it will not read and write the same place.
     python3 "$ROOT/build/merge-packages.py" "$PRIMARY_DIR" "$WIN1_DIR" "$MERGED_DIR"
     python3 "$ROOT/build/merge-packages.py" "$MERGED_DIR" "$WIN2_DIR" "$OUTPUT"
+
+    # Straight after the merge rather than only at the end, because the next package is packed
+    # against this one out of artifacts/ — so a package that came out of the merge without its
+    # Windows assets would otherwise be discovered later, having already been built against.
+    require_windows_frameworks "$OUTPUT/$nupkg"
+    MERGED_PACKAGES="$MERGED_PACKAGES $nupkg"
 done
 
 rm -rf "$WIN1_DIR" "$WIN2_DIR" "$PRIMARY_DIR" "$MERGED_DIR"
 
-echo "==> windows assets added to $OUTPUT"
+# And again over the finished directory. Everything above packs and merges one package while the
+# rest sit in the same directory, so "each package was right when it was merged" is not the same
+# claim as "every package is still right now".
+echo "==> windows assets in $OUTPUT"
+for nupkg in $MERGED_PACKAGES; do
+    require_windows_frameworks "$OUTPUT/$nupkg"
+done
