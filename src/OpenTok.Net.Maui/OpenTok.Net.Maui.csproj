@@ -53,4 +53,52 @@
     <PackageReference Include="OpenTok.Net" Version="[$(OpenTokCorePackageVersion)]" />
   </ItemGroup>
 
+  <!--
+    On Windows only, and for the reason spelled out on OpenTok.Net's own Windows references:
+    OpenTok.Client's targets arrive here through OpenTok.Net and add its x64 native payload as
+    @(Content), which MakePri would index into OpenTok.Net.Maui.pri — a package naming files it does
+    not carry, and an MSB3030 in the build of every app that consumes it. Nothing here needs the
+    payload: this is a library being packed, not an app being run.
+
+    Update rather than a second Include, so the reference above stays the single place the version
+    is stated; conditioned per target framework, because the android and ios heads genuinely do need
+    the build assets of the platform bindings underneath. PrivateAssets="none" keeps everything
+    flowing to consumers, where the payload does belong.
+  -->
+  <ItemGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' ">
+    <PackageReference Update="OpenTok.Net" ExcludeAssets="build" PrivateAssets="none" />
+  </ItemGroup>
+
+  <!--
+    Works around https://github.com/dotnet/maui/issues/32683.
+
+    Microsoft.Maui.Core and Microsoft.Maui.Controls.Core ship a .pri that names
+    Microsoft.Maui/Handlers/HybridWebView/HybridWebView.js, and neither package carries that file.
+    Windows App SDK 1.8 expands a referenced package's .pri into copy-to-output items, so every
+    Windows build that resolves those packages now fails with MSB3030 for a file that has never
+    existed — verified against microsoft.maui.core 9.0.120, whose lib/net9.0-windows10.0.19041/
+    holds Microsoft.Maui.pri and no .js at all.
+
+    Dropping payload items whose file is not on disk rather than matching HybridWebView.js by name,
+    which is the workaround in that issue: the same expansion has been reported to invent
+    WebView2Loader.dll as well, and a name list is a list of the ones seen so far. Nothing is lost —
+    these items exist only to be copied, and a file that is not there cannot be.
+
+    Remove this target once the MAUI packages this builds against stop naming files they do not
+    ship; it is a no-op from then on.
+  -->
+  <Target Name="OpenTokDropMissingPriPayloadFiles"
+          AfterTargets="AddPriPayloadFilesToCopyToOutputDirectoryItems"
+          Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' ">
+    <ItemGroup>
+      <_OpenTokMissingPriPayloadFiles Include="@(_AllChildProjectItemsWithTargetPath)"
+                                      Condition=" !Exists('%(FullPath)') " />
+      <_AllChildProjectItemsWithTargetPath Remove="@(_OpenTokMissingPriPayloadFiles)" />
+    </ItemGroup>
+
+    <Message Importance="normal"
+             Condition=" '@(_OpenTokMissingPriPayloadFiles)' != '' "
+             Text="Dropped PRI payload files that no referenced package carries: @(_OpenTokMissingPriPayloadFiles->'%(Filename)%(Extension)')" />
+  </Target>
+
 </Project>
