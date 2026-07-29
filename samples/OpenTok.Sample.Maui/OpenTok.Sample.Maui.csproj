@@ -110,4 +110,30 @@
     <PackageReference Include="OpenTok.Net.Maui" Version="[$(OpenTokPackageVersion)]" />
   </ItemGroup>
 
+  <!--
+    Works around https://github.com/dotnet/maui/issues/32683, the same way and for the same reason
+    as src/OpenTok.Net.Maui/OpenTok.Net.Maui.csproj — see the long version of this comment there.
+
+    In short: Microsoft.Maui.Core and Microsoft.Maui.Controls.Core ship a .pri naming
+    Microsoft.Maui/Handlers/HybridWebView/HybridWebView.js, neither package carries that file, and
+    Windows App SDK 1.8 expands a referenced package's .pri into copy-to-output items. A library
+    that has the target and an app that does not still fails, because the app does its own
+    expansion of the same MAUI packages.
+
+    Remove this once the MAUI packages stop naming files they do not ship.
+  -->
+  <Target Name="OpenTokDropMissingPriPayloadFiles"
+          AfterTargets="AddPriPayloadFilesToCopyToOutputDirectoryItems"
+          Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' ">
+    <ItemGroup>
+      <_OpenTokMissingPriPayloadFiles Include="@(_AllChildProjectItemsWithTargetPath)"
+                                      Condition=" !Exists('%(FullPath)') " />
+      <_AllChildProjectItemsWithTargetPath Remove="@(_OpenTokMissingPriPayloadFiles)" />
+    </ItemGroup>
+
+    <Message Importance="normal"
+             Condition=" '@(_OpenTokMissingPriPayloadFiles)' != '' "
+             Text="Dropped PRI payload files that no referenced package carries: @(_OpenTokMissingPriPayloadFiles->'%(Filename)%(Extension)')" />
+  </Target>
+
 </Project>
