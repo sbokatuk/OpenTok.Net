@@ -103,10 +103,16 @@ jobs:
         with:
           dotnet-version: 9.0.x
 
+      # nuget-packages-with-windows, not nuget-packages. The pack job runs on macOS and cannot build
+      # a -windows target framework at all, so its output is complete for iOS and Android and has no
+      # Windows assets whatsoever; build.yml's add-windows-assets job packs those separately and
+      # merges them in. Publishing the wrong one of the two would ship a package that restores fine
+      # and then has nothing for a Windows head — silently, since NuGet reports a missing target
+      # framework only when something asks for it.
       - name: Download packages
         uses: actions/download-artifact@v4
         with:
-          name: nuget-packages
+          name: nuget-packages-with-windows
           path: artifacts
 
       # nuget.org is published to first: a GitHub release linking to packages that failed to upload

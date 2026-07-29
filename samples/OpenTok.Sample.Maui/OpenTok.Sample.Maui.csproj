@@ -20,8 +20,23 @@
   -->
   <PropertyGroup>
     <OpenTokSdkBand Condition=" '$(OpenTokSdkBand)' == '' ">net9</OpenTokSdkBand>
-    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net9' ">net9.0-android35.0;net9.0-ios18.0</TargetFrameworks>
-    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' ">net10.0-android36.0;net10.0-ios26.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' != 'true' AND '$(OpenTokSdkBand)' == 'net9' ">net9.0-android35.0;net9.0-ios18.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' != 'true' AND '$(OpenTokSdkBand)' == 'net10' ">net10.0-android36.0;net10.0-ios26.0</TargetFrameworks>
+
+    <!--
+      Windows *replaces* the list rather than extending it, for the reason src/OpenTok.Net.props
+      gives at length: no machine can build all three heads, so a list naming all of them builds
+      nowhere. OpenTokWindowsOnly=true selects the Windows head on its own.
+
+      It matters more here than in the library, because of the MauiVersion trap already documented
+      below: a declared list containing an ios head on a Windows runner does not merely fail to
+      build it, it breaks workload resolution for the head that *can* build.
+
+      This is the sample's real job for Windows — proving MainPage.xaml.cs, which contains no
+      per-platform code at all, compiles and runs on a third platform without gaining any.
+    -->
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' == 'true' AND '$(OpenTokSdkBand)' == 'net9' ">net9.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' == 'true' AND '$(OpenTokSdkBand)' == 'net10' ">net10.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
 
     <OutputType>Exe</OutputType>
     <RootNamespace>OpenTok.Sample.Maui</RootNamespace>
@@ -47,6 +62,22 @@
 
   <PropertyGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' ">
     <SupportedOSPlatformVersion>$(OpenTokSupportedAndroidVersion)</SupportedOSPlatformVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' ">
+    <SupportedOSPlatformVersion>$(OpenTokSupportedWindowsVersion)</SupportedOSPlatformVersion>
+    <TargetPlatformMinVersion>$(OpenTokSupportedWindowsVersion)</TargetPlatformMinVersion>
+
+    <!--
+      x64, and this is not a preference. OpenTok.Client's native payload — opentok.dll and its
+      capturers — has no arm64 build, so an arm64 app fails on its first call into the SDK with
+      BadImageFormatException. OpenTok.Net.Win ships a targets file that turns that into a build
+      error (OTW0001); setting the RID here is what keeps this sample on the right side of it.
+      Windows on ARM runs the x64 build under emulation.
+    -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>false</SelfContained>
+    <WindowsPackageType>None</WindowsPackageType>
   </PropertyGroup>
 
   <ItemGroup>
@@ -78,5 +109,31 @@
     <PackageReference Include="OpenTok.Net" Version="[$(OpenTokPackageVersion)]" />
     <PackageReference Include="OpenTok.Net.Maui" Version="[$(OpenTokPackageVersion)]" />
   </ItemGroup>
+
+  <!--
+    Works around https://github.com/dotnet/maui/issues/32683, the same way and for the same reason
+    as src/OpenTok.Net.Maui/OpenTok.Net.Maui.csproj — see the long version of this comment there.
+
+    In short: Microsoft.Maui.Core and Microsoft.Maui.Controls.Core ship a .pri naming
+    Microsoft.Maui/Handlers/HybridWebView/HybridWebView.js, neither package carries that file, and
+    Windows App SDK 1.8 expands a referenced package's .pri into copy-to-output items. A library
+    that has the target and an app that does not still fails, because the app does its own
+    expansion of the same MAUI packages.
+
+    Remove this once the MAUI packages stop naming files they do not ship.
+  -->
+  <Target Name="OpenTokDropMissingPriPayloadFiles"
+          AfterTargets="AddPriPayloadFilesToCopyToOutputDirectoryItems"
+          Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' ">
+    <ItemGroup>
+      <_OpenTokMissingPriPayloadFiles Include="@(_AllChildProjectItemsWithTargetPath)"
+                                      Condition=" !Exists('%(FullPath)') " />
+      <_AllChildProjectItemsWithTargetPath Remove="@(_OpenTokMissingPriPayloadFiles)" />
+    </ItemGroup>
+
+    <Message Importance="normal"
+             Condition=" '@(_OpenTokMissingPriPayloadFiles)' != '' "
+             Text="Dropped PRI payload files that no referenced package carries: @(_OpenTokMissingPriPayloadFiles->'%(Filename)%(Extension)')" />
+  </Target>
 
 </Project>

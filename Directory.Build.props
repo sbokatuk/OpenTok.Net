@@ -22,7 +22,7 @@
       makes the package invisible to `dotnet add package`.
     -->
     <OpenTokVersion>2.34.1</OpenTokVersion>
-    <OpenTokBindingRevision>3</OpenTokBindingRevision>
+    <OpenTokBindingRevision>4</OpenTokBindingRevision>
     <VersionPrefix>$(OpenTokVersion).$(OpenTokBindingRevision)</VersionPrefix>
 
     <!--
@@ -61,6 +61,50 @@
     -->
     <OpenTokSupportedIosVersion>15.0</OpenTokSupportedIosVersion>
     <OpenTokSupportedAndroidVersion>24</OpenTokSupportedAndroidVersion>
+
+    <!--
+      Windows, where two different numbers are needed and conflating them is the usual mistake.
+
+      OpenTokWindowsSdkVersion (10.0.19041.0) is what the target framework is *built* against — the
+      Windows App SDK's floor for WinUI 3, and therefore not negotiable.
+
+      OpenTokSupportedWindowsVersion (10.0.17763.0) is where the result will *run*, and is .NET
+      MAUI's own floor. Setting the runtime floor to 19041 as well would refuse to install on
+      machines MAUI itself supports, for no gain.
+    -->
+    <OpenTokWindowsSdkVersion>10.0.19041.0</OpenTokWindowsSdkVersion>
+    <OpenTokSupportedWindowsVersion>10.0.17763.0</OpenTokSupportedWindowsVersion>
+
+    <!--
+      The Windows App SDK, which is what provides WinUI 3. Must match what OpenTok.Net.Win was built
+      against — both end up in one app, and two WinUI runtimes is not a thing that resolves quietly.
+    -->
+    <WindowsAppSdkVersion>2.3.1</WindowsAppSdkVersion>
+
+    <!--
+      The Windows head's own package. Exact, like the other two — see the comment on those, and note
+      the extra reason here: OpenTok.Net.Win carries the renderer that reads VideoFrame planes
+      directly, so a mismatched pair is not a version-skew inconvenience but a memory-safety one.
+
+      Because the pin is exact, the Windows jobs here cannot run until this version exists on
+      nuget.org — restore fails with NU1102 and the whole Windows leg goes red for a reason that has
+      nothing to do with the change under review. While a Windows change is still in flight, point
+      this at the beta that repository's own pull request publishes:
+
+          <OpenTokWinPackageVersion>2.34.1.4-beta.7.3</OpenTokWinPackageVersion>
+
+      OpenTok.Net.Win's pr.yml pushes one per pull-request build and prints the exact version in the
+      job summary. Move it back to the stable version before tagging a release here — the release
+      notes for 2.34.1.4 spell out that ordering, and OpenTok.Net 2.34.1.2 is what happens when it
+      is not followed.
+    -->
+    <OpenTokWinPackageVersion>2.34.1.4</OpenTokWinPackageVersion>
+
+    <!--
+      Vonage's own Windows SDK. Arrives transitively through OpenTok.Net.Win anyway; pinned here
+      because this façade compiles against OpenTok.Session and OpenTok.Publisher directly.
+    -->
+    <OpenTokClientPackageVersion>2.34.1</OpenTokClientPackageVersion>
 
     <Authors>s.bokatuk</Authors>
     <Company>s.bokatuk</Company>

@@ -33,4 +33,49 @@
     <PackageReference Include="OpenTok.Net.Android" Version="[$(OpenTokAndroidPackageVersion)]" />
   </ItemGroup>
 
+  <!--
+    Windows takes two packages where the other platforms take one: Vonage's own OpenTok.Client,
+    which is already managed .NET and needs no binding, and OpenTok.Net.Win, which supplies the
+    WinUI 3 renderer OpenTok.Client does not have. OpenTok.Net.Win depends on OpenTok.Client, so
+    naming it alone would be enough — it is listed explicitly because this façade calls
+    OpenTok.Session and OpenTok.Publisher directly, and a package it compiles against belongs in its
+    own reference list rather than arriving transitively.
+  -->
+  <ItemGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' ">
+    <!--
+      ExcludeAssets="build" on both, PrivateAssets="none" on both. The pair is the same one
+      OpenTok.Net.Win uses on its own OpenTok.Client reference, for the same reason one level
+      further out — its comment is the long version of this one.
+
+      OpenTok.Client's build/OpenTok.Client.targets globs its package directory and adds
+      opentok.dll and the three capturers as @(Content). That is right for an application and wrong
+      for this: the Windows head is a WinUI library, so MakePri indexes every @(Content) item into
+      OpenTok.Net.pri under a folder named after the library. The .pri ships in lib/<tfm>/ and the
+      native DLLs deliberately do not, so a consumer — OpenTok.Net.Maui first, an app after it —
+      expands that .pri, resolves each recorded payload file beside it, and fails with MSB3030 for
+      lib/<tfm>/OpenTok.Net/opentok.dll and friends. Excluding the build assets leaves nothing to
+      index. Both references carry it because the targets reach this project by either path, and an
+      exclusion on one edge does nothing about the other.
+
+      PrivateAssets="none" is what still gets the payload into an app: NuGet's default keeps a
+      dependency's build assets private, and under it a consumer would restore OpenTok.Client,
+      never import its targets, and build an app with no opentok.dll in it. Flowing them costs
+      nothing here, because this package carries no copy of the payload.
+    -->
+    <PackageReference Include="OpenTok.Net.Win" Version="[$(OpenTokWinPackageVersion)]"
+                      ExcludeAssets="build" PrivateAssets="none" />
+    <PackageReference Include="OpenTok.Client" Version="[$(OpenTokClientPackageVersion)]"
+                      ExcludeAssets="build" PrivateAssets="none" />
+
+    <!--
+      Named here even though OpenTok.Net.Win already brings it. The Windows head compiles against
+      WinUI types directly — FrameworkElement in IOpenTokVideoSource, DispatcherQueue in
+      OpenTokWindowsContext — and a project that compiles against a transitive dependency's types
+      breaks the moment that dependency stops needing them. Pinned to the same version
+      OpenTok.Net.Win was built against; two WinUI runtimes in one app is not a thing that resolves
+      quietly.
+    -->
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="$(WindowsAppSdkVersion)" />
+  </ItemGroup>
+
 </Project>

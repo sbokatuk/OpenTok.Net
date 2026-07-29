@@ -26,8 +26,29 @@
       carry fails to restore, and does so only for whoever picks that framework.
     -->
     <OpenTokSdkBand Condition=" '$(OpenTokSdkBand)' == '' ">net9</OpenTokSdkBand>
-    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net9' ">net8.0-android34.0;net9.0-android35.0;net8.0-ios18.0;net9.0-ios18.0</TargetFrameworks>
-    <TargetFrameworks Condition=" '$(OpenTokSdkBand)' == 'net10' ">net10.0-android36.0;net10.0-ios26.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' != 'true' AND '$(OpenTokSdkBand)' == 'net9' ">net8.0-android34.0;net9.0-android35.0;net8.0-ios18.0;net9.0-ios18.0</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' != 'true' AND '$(OpenTokSdkBand)' == 'net10' ">net10.0-android36.0;net10.0-ios26.0</TargetFrameworks>
+
+    <!--
+      Windows, and it *replaces* the list above rather than being appended to it.
+
+      That is the whole point, and appending was a mistake worth naming: no machine can build all
+      three heads, so a target framework list containing all of them cannot be built anywhere. A
+      Windows runner has no Xcode, so the ios heads are impossible there in principle rather than
+      merely unconfigured — and the android heads failed with NETSDK1147 for a workload that
+      genuinely has no reason to be installed on a machine packing Windows assets.
+
+      So the two are mutually exclusive by construction: build/AddWindowsAssets.sh passes
+      OpenTokWindowsOnly=true and gets a Windows-only pack, everything else gets the mobile heads,
+      and build/merge-packages.py joins the two into one package. Selected by an explicit property
+      rather than by IsOSPlatform, because "am I on Windows" is not the question — a Windows machine
+      is perfectly able to build the android heads, it just must not be asked to while doing this.
+
+      Unlike ios and android, a -windows target framework needs no workload beyond the Windows SDK
+      reference pack, which every band carries, so net8/net9/net10 sit in their own band's list.
+    -->
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' == 'true' AND '$(OpenTokSdkBand)' == 'net9' ">net8.0-windows$(OpenTokWindowsSdkVersion);net9.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
+    <TargetFrameworks Condition=" '$(OpenTokWindowsOnly)' == 'true' AND '$(OpenTokSdkBand)' == 'net10' ">net10.0-windows$(OpenTokWindowsSdkVersion)</TargetFrameworks>
 
     <!--
       net8.0-* is past end of support, which the SDK reports as an error. It ships deliberately:
@@ -60,6 +81,18 @@
   </PropertyGroup>
 
   <!--
+    Windows 10 build 17763 is .NET MAUI's own floor, and it is deliberately lower than the
+    10.0.19041 the target framework is *built* against. That split is the normal Windows pattern:
+    TargetPlatformVersion says which APIs may be referenced, SupportedOSPlatformVersion says where
+    the result will run. WinUI needs 19041 to build and MAUI supports 17763 at runtime, so a floor
+    of 19041 here would refuse to install on machines MAUI itself supports.
+  -->
+  <PropertyGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' ">
+    <SupportedOSPlatformVersion>$(OpenTokSupportedWindowsVersion)</SupportedOSPlatformVersion>
+    <UseWinUI>true</UseWinUI>
+  </PropertyGroup>
+
+  <!--
     Per-platform sources, selected by folder rather than by #if.
 
     The default globs would compile every Platforms/ folder into every target framework, so they
@@ -78,6 +111,10 @@
 
   <ItemGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' ">
     <Compile Include="Platforms/Android/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows' ">
+    <Compile Include="Platforms/Windows/**/*.cs" />
   </ItemGroup>
 
   <!-- Packaging -->

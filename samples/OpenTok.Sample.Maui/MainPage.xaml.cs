@@ -371,13 +371,10 @@ public partial class MainPage : ContentPage
 
     // ---- teardown ---------------------------------------------------------------------------
 
-    private static async Task<bool> RequestCapturePermissionsAsync()
-    {
-        var camera = await Permissions.RequestAsync<Permissions.Camera>();
-        var microphone = await Permissions.RequestAsync<Permissions.Microphone>();
-
-        return camera == PermissionStatus.Granted && microphone == PermissionStatus.Granted;
-    }
+    // Behind a shim rather than calling MAUI's Permissions API directly, because Windows has no
+    // runtime prompt to make — see CapturePermissions. Still one call from here, and still no
+    // platform branching in this file.
+    private static Task<bool> RequestCapturePermissionsAsync() => CapturePermissions.RequestAsync();
 
     private void SetConnected(bool connected)
     {
