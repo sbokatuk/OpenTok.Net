@@ -19,7 +19,11 @@
 #            NuGet package id
 #   confirm  download URL template with {version}, or "-" to derive it from the locator
 #
-# group	label	kind	pin	locator	confirm
-Platform packages	OpenTok.Net.Android	nuget	OpenTokAndroidPackageVersion	OpenTok.Net.Android	-
-Platform packages	OpenTok.Net.iOS	nuget	OpenTokIosPackageVersion	OpenTok.Net.iOS	-
-Platform packages	OpenTok.Net.Win	nuget	OpenTokWinPackageVersion	OpenTok.Net.Win	-
+#   source   owner/repo publishing the component - optional, and only meaningful on nuget
+#            rows, where the drift finding links that repository's release notes for the
+#            version it reports
+#
+# group	label	kind	pin	locator	confirm	source
+Platform packages	OpenTok.Net.Android	nuget	OpenTokAndroidPackageVersion	OpenTok.Net.Android	-	sbokatuk/OpenTok.Net.Android
+Platform packages	OpenTok.Net.iOS	nuget	OpenTokIosPackageVersion	OpenTok.Net.iOS	-	sbokatuk/OpenTok.Net.iOS
+Platform packages	OpenTok.Net.Win	nuget	OpenTokWinPackageVersion	OpenTok.Net.Win	-	sbokatuk/OpenTok.Net.Win
