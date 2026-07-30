@@ -183,8 +183,10 @@ Three suites, two of which run anywhere:
 
 - **`tests/OpenTok.Net.UnitTests`** checks the repository's own bookkeeping with nothing built —
   `build/packages.tsv` against the projects under `src/`, the solution against both, dependency
-  ordering, and the version pins. Including the invariant this repository exists for: **both pinned
-  platform packages wrapping the same native SDK generation.**
+  ordering, and the version pins: each declared exactly once in `Directory.Build.props`, comments
+  included, and each a released version rather than one of the platform repositories' betas.
+  Including the invariant this repository exists for: **both pinned platform packages wrapping the
+  same native SDK generation.**
 - **`tests/OpenTok.Net.PackageTests`** inspects the packed `.nupkg` files: an assembly for every
   target framework, the right platform binding depended on for each one, an exact-version link
   between the two packages, and the same same-SDK-generation check read back out of the shipped
