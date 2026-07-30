@@ -41,8 +41,10 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       # Named here rather than in the script so each repository says its own thing without the
-      # shared checker growing repository-specific prose.
-      REPIN_HINT: 'Pins live in `Directory.Build.props`; `./build/BumpNativeVersion.sh <version>` does the mechanical part.'
+      # shared checker growing repository-specific prose. There is no BumpNativeVersion.sh in this
+      # one — it binds nothing native, so a pin is a hand edit, and the two ways that goes wrong are
+      # worth naming in every report rather than once in a file nobody rereads.
+      REPIN_HINT: 'Pins live in `Directory.Build.props` and are edited by hand; this repository binds nothing native, so there is no bump script. Change the property value itself — never a prerelease, and never as an example element inside a comment, since everything that reads these pins outside MSBuild keeps the first textual match.'
     steps:
       - uses: actions/checkout@v4
 

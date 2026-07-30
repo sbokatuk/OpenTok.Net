@@ -22,7 +22,7 @@
       makes the package invisible to `dotnet add package`.
     -->
     <OpenTokVersion>2.34.1</OpenTokVersion>
-    <OpenTokBindingRevision>4</OpenTokBindingRevision>
+    <OpenTokBindingRevision>5</OpenTokBindingRevision>
     <VersionPrefix>$(OpenTokVersion).$(OpenTokBindingRevision)</VersionPrefix>
 
     <!--
@@ -86,17 +86,24 @@
       the extra reason here: OpenTok.Net.Win carries the renderer that reads VideoFrame planes
       directly, so a mismatched pair is not a version-skew inconvenience but a memory-safety one.
 
-      Because the pin is exact, the Windows jobs here cannot run until this version exists on
-      nuget.org — restore fails with NU1102 and the whole Windows leg goes red for a reason that has
-      nothing to do with the change under review. While a Windows change is still in flight, point
-      this at the beta that repository's own pull request publishes:
+      A released version, never one of the betas OpenTok.Net.Win's pr.yml publishes per pull-request
+      build. Because the pin is exact, the Windows jobs here cannot run until the pinned version
+      exists on nuget.org — restore fails with NU1102 and the whole Windows leg goes red for a reason
+      that has nothing to do with the change under review — and pinning the in-flight beta to get
+      past that is how the beta reaches a release: whatever is here when a tag is cut is what
+      consumers of the umbrella resolve, and a released package that depends on something built from
+      a branch is not a release. The platform repository publishes first and this one re-pins behind
+      it; the release notes for 2.34.1.4 spell out that ordering, and OpenTok.Net 2.34.1.2 is what
+      happens when it is not followed.
 
-          <OpenTokWinPackageVersion>2.34.1.4-beta.7.3</OpenTokWinPackageVersion>
-
-      OpenTok.Net.Win's pr.yml pushes one per pull-request build and prints the exact version in the
-      job summary. Move it back to the stable version before tagging a release here — the release
-      notes for 2.34.1.4 spell out that ordering, and OpenTok.Net 2.34.1.2 is what happens when it
-      is not followed.
+      Set as this element's value and nowhere else in this file. Everything that reads these pins
+      outside MSBuild — build/pins.sh, build/check-upstream.sh, release.yml, pr.yml, the repository
+      consistency tests — matches the element textually and keeps the first hit, so a second one
+      written into a comment above the real pin *is* the pin as far as all of them are concerned.
+      That is not hypothetical: an example beta spelled out here in full had the daily upstream check
+      reporting this package as pinned to a prerelease nuget.org had never carried, while the
+      packages themselves were built against the release below it. RepositoryConsistencyTests now
+      asserts both halves — one occurrence per pinned property, and no prerelease in any of them.
     -->
     <OpenTokWinPackageVersion>2.34.1.4</OpenTokWinPackageVersion>
 

@@ -122,14 +122,52 @@ public class RepositoryConsistencyTests
     [InlineData("OpenTokVersion")]
     [InlineData("OpenTokIosPackageVersion")]
     [InlineData("OpenTokAndroidPackageVersion")]
+    [InlineData("OpenTokWinPackageVersion")]
+    [InlineData("OpenTokClientPackageVersion")]
     public void Version_properties_are_literal_dotted_version_numbers(string property)
     {
-        // Literal, not an MSBuild expression: .github/workflows/release.yml reads these with sed and
-        // tests/OpenTok.Net.PackageTests compares them as strings. Neither evaluates MSBuild, so a
+        // Literal, not an MSBuild expression: the GitHub workflows (e.g. .github/workflows/release.yml)
+        // and ReadProperty below read these with plain text matching. Neither evaluates MSBuild, so a
         // "$(OpenTokVersion).1" here would reach the published release notes verbatim.
+        //
+        // The same pattern rules out a prerelease, which is the other way a pin goes wrong. Every
+        // pull request in the platform repositories publishes a <version>-beta.<pr>.<run>, and
+        // pinning one is the obvious way to get this repository's Windows leg green while that
+        // repository's release is still in flight — but whatever is pinned when a tag is cut is what
+        // consumers of the umbrella resolve, and a released package that depends on something built
+        // from a branch is not a release. The platform repository publishes first; this one re-pins
+        // behind it.
         var value = ReadProperty(property);
 
         Assert.Matches(@"^\d+(\.\d+){1,3}$", value);
+    }
+
+    [Theory]
+    [InlineData("OpenTokVersion")]
+    [InlineData("OpenTokBindingRevision")]
+    [InlineData("OpenTokIosPackageVersion")]
+    [InlineData("OpenTokAndroidPackageVersion")]
+    [InlineData("OpenTokWinPackageVersion")]
+    [InlineData("OpenTokClientPackageVersion")]
+    public void Version_properties_are_declared_exactly_once(string property)
+    {
+        // Everything that reads these pins outside MSBuild — build/pins.sh, build/check-upstream.sh,
+        // release.yml, pr.yml, ReadProperty below — matches the element textually and keeps the
+        // first hit. An XML comment is not a comment to any of them, so a second element written
+        // into the prose above the real pin *is* the pin as far as they are concerned, and the two
+        // disagree exactly where it is least visible: MSBuild never sees the comment, so the build
+        // stays right while every report about the build is wrong.
+        //
+        // That is what an example beta above OpenTokWinPackageVersion did — the daily upstream check
+        // reported the Windows package as pinned to a prerelease nuget.org had never carried, while
+        // the packages were built against the release underneath it.
+        var props = File.ReadAllText(Path.Combine(RepositoryRoot, "Directory.Build.props"));
+
+        var occurrences = props.Split($"<{property}>").Length - 1;
+
+        Assert.True(
+            occurrences == 1,
+            $"Directory.Build.props opens <{property}> {occurrences} times; it must appear once, comments included.");
     }
 
     [Fact]
