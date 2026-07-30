@@ -155,8 +155,8 @@ public class RepositoryConsistencyTests
         // release.yml, pr.yml, ReadProperty below — matches the element textually and keeps the
         // first hit. An XML comment is not a comment to any of them, so a second element written
         // into the prose above the real pin *is* the pin as far as they are concerned, and the two
-        // disagree exactly where it is least visible: MSBuild keeps building against the last value
-        // in the file while every report about the file describes the first.
+        // disagree exactly where it is least visible: MSBuild never sees the comment, so the build
+        // stays right while every report about the build is wrong.
         //
         // That is what an example beta above OpenTokWinPackageVersion did — the daily upstream check
         // reported the Windows package as pinned to a prerelease nuget.org had never carried, while
