@@ -101,9 +101,9 @@
       consistency tests — matches the element textually and keeps the first hit, so a second one
       written into a comment above the real pin *is* the pin as far as all of them are concerned.
       That is not hypothetical: an example beta spelled out here in full had the daily upstream check
-      reporting this package as pinned to a prerelease nuget.org had never carried, while every
-      package built against the release below it. RepositoryConsistencyTests now asserts both halves
-      — one occurrence per pinned property, and no prerelease in any of them.
+      reporting this package as pinned to a prerelease nuget.org had never carried, while the
+      packages themselves were built against the release below it. RepositoryConsistencyTests now
+      asserts both halves — one occurrence per pinned property, and no prerelease in any of them.
     -->
     <OpenTokWinPackageVersion>2.34.1.4</OpenTokWinPackageVersion>
 
