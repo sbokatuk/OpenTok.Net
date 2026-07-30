@@ -126,8 +126,8 @@ public class RepositoryConsistencyTests
     [InlineData("OpenTokClientPackageVersion")]
     public void Version_properties_are_literal_dotted_version_numbers(string property)
     {
-        // Literal, not an MSBuild expression: .github/workflows/release.yml reads these with sed and
-        // tests/OpenTok.Net.PackageTests compares them as strings. Neither evaluates MSBuild, so a
+        // Literal, not an MSBuild expression: the GitHub workflows (e.g. .github/workflows/release.yml)
+        // and ReadProperty below read these with plain text matching. Neither evaluates MSBuild, so a
         // "$(OpenTokVersion).1" here would reach the published release notes verbatim.
         //
         // The same pattern rules out a prerelease, which is the other way a pin goes wrong. Every
