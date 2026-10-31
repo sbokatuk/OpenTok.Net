@@ -11,6 +11,8 @@ VERSION="${1:?a package version is required}"
 TARGET_FRAMEWORK="${2:-net10.0-ios26.0}"
 
 BUNDLE_ID="com.sbokatuk.opentoknet.devicetests"
+# The name the simulator's unified log files the app's lines under.
+APP_PROCESS="OpenTok.Net.DeviceTests"
 LOG_FILE="simulator-tests.log"
 # CI runners are Apple silicon. Override for an Intel runner, whose simulator is x64.
 SIMULATOR_RID="${OPENTOK_SIMULATOR_RID:-iossimulator-arm64}"
@@ -127,35 +129,57 @@ echo "==> installing"
 xcrun simctl install "${udid}" "${APP_PATH}"
 
 echo "==> running"
-# --console-pty streams the app's stdout straight back, so the verdict needs no log scraping. The
-# app terminates itself once it has printed OPENTOK_E2E_DONE.
+# --console-pty streams the app's stdout straight back, so the verdict rarely needs log scraping.
+# The app terminates itself once it has printed OPENTOK_E2E_DONE.
+#
+# The unified log also holds earlier runs of the app, and a stale PASS from one of those must not
+# stand in for this run, so every query below starts at this launch. A unix time, because `log show`
+# reads its other formats in the simulator's time zone.
+launch_started="$(date +%s)"
 set +e
 xcrun simctl launch --console-pty "${udid}" "${BUNDLE_ID}" 2>&1 | tee "${LOG_FILE}"
 set -e
 
-if ! grep -q "OPENTOK_E2E_DONE PASS" "${LOG_FILE}"; then
+# Prints PASS or FAIL for the last verdict on stdin, or nothing when there is none. -a because the
+# console stream is raw terminal output, and grep answers -o with "Binary file matches" if it
+# decides that is not text.
+read_verdict() {
+    { grep -aEo "OPENTOK_E2E_DONE (PASS|FAIL)" || true; } | tail -1 | cut -d' ' -f2
+}
+
+verdict="$(read_verdict < "${LOG_FILE}")"
+
+# simctl can stop relaying when the app exits, with the last lines still undelivered. DatadogNet run
+# 41110146674 printed a passing verdict, but the console stream ended half a second of output before
+# it and was running two seconds behind the app, so a short wait in the app would not be enough.
+# This app does wait a second before exiting, which narrows that gap without closing it. That is a
+# lost report rather than a failed run, and the unified log still has it. The PASS and FAIL lines
+# come too, so the uploaded log says which check failed. The retries only cost time on a run that is
+# failing anyway, and a query that came too early would bring the false failure back.
+if [ -z "${verdict}" ]; then
+    echo "==> no verdict on the console stream; reading the device log"
+    for _ in 1 2 3; do
+        xcrun simctl spawn "${udid}" log show --start "@${launch_started}" --predicate \
+            "process == '${APP_PROCESS}' AND (eventMessage BEGINSWITH 'PASS ' OR eventMessage BEGINSWITH 'FAIL ' OR eventMessage BEGINSWITH 'OPENTOK_E2E_DONE ')" \
+            2>/dev/null | tee -a "${LOG_FILE}" || true
+        verdict="$(read_verdict < "${LOG_FILE}")"
+        [ -z "${verdict}" ] || break
+        sleep 5
+    done
+
+    if [ -n "${verdict}" ]; then
+        echo "::warning::the console stream lost the verdict, so it was read from the device log"
+    fi
+fi
+
+if [ "${verdict}" != "PASS" ]; then
     # No verdict usually means the app died before reporting, so keep the crash trace. A missing
     # or mis-stripped xcframework shows up here as a dyld failure naming the framework.
-    echo "==> no passing verdict on the console stream; capturing the device log"
-    xcrun simctl spawn "${udid}" log show --last 2m --predicate "process == 'OpenTok.Net.DeviceTests'" \
+    echo "==> no passing verdict; capturing crash output"
+    xcrun simctl spawn "${udid}" log show --start "@${launch_started}" --predicate "process == '${APP_PROCESS}'" \
         2>/dev/null | tail -100 | tee -a "${LOG_FILE}" || true
-
-    # Re-check against the device log before failing. The console stream can lose its tail: it
-    # arrives over a pty that closes when the app exits, so a verdict printed immediately before
-    # termination may never be drained. That happened on net10.0-ios26.0 — eight passing checks, a
-    # truncated stream, and a job failure — and the dump just captured above is what proved the app
-    # had in fact reported. The app now flushes and waits before exiting, which should stop the
-    # stream losing anything; this is the second line of defence, and it costs one grep.
-    #
-    # os_log is authoritative here rather than a guess: it is written by the app itself, and it
-    # cannot contain a verdict the app never printed.
-    if grep -q "OPENTOK_E2E_DONE PASS" "${LOG_FILE}"; then
-        echo "==> verdict found in the device log; the console stream was truncated"
-        echo "::warning::simulator checks passed, but the console stream lost its tail — see run-simulator-tests.sh"
-    else
-        echo "::error::OpenTok simulator checks failed or timed out"
-        exit 1
-    fi
+    echo "::error::OpenTok simulator checks failed or timed out"
+    exit 1
 fi
 
 echo "==> simulator checks passed"
