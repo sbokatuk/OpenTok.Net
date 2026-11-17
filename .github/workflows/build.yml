@@ -201,6 +201,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # opentok-android-sdk's classes.jar is Java 17 class file format (version 61), so the javac
+      # that compiles the device app's listener glue against it has to be 17 or newer. Nothing
+      # selected a JDK here, which left the choice to the runner image: ubuntu-24.04 gave every
+      # band 17, but on ubuntu-26.04 the net8 band resolves JDK 11 and fails with "class file has
+      # wrong version 61.0, should be 55.0". Same step as the Release build job below.
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
